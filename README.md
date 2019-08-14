@@ -13,5 +13,4 @@ Clone repository and install Rust. It's really useful to install Cargo, rust pac
 - [Rust](https://aur.archlinux.org/packages/libavresample/) [\[apt\]](https://packages.ubuntu.com/search?keywords=rust&searchon=all&suite=all&section=all) [\[pacman\]](https://www.archlinux.org/packages/extra/x86\_64/rust/)
 
 ## Runtime dependencies
-- ffmpeg (tested on 4.2) [\[apt\]](https://packages.ubuntu.com/search?keywords=ffmpeg&searchon=all&suite=all&section=all) [\[pacman\]](https://www.archlinux.org/packages/extra/x86\_64/ffmpeg/)
-- libavresample (might be part of ffmpeg) [\[AUR\]](https://aur.archlinux.org/packages/libavresample/)
+- [ffmpeg](https://wiki.archlinux.org/index.php/FFmpeg/) (tested on 4.2) [\[apt\]](https://packages.ubuntu.com/search?keywords=ffmpeg&searchon=all&suite=all&section=all) [\[pacman\]](https://www.archlinux.org/packages/extra/x86\_64/ffmpeg/)
