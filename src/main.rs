@@ -1,9 +1,8 @@
 // mp3 parser and cli
-use minimp3::{Decoder, Error, Frame};
+use minimp3::{Decoder, Error};
 use structopt::StructOpt;
 
 use std::ffi::OsStr;
-use std::io::Read;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
@@ -45,7 +44,7 @@ fn main() {
         .output()
         .unwrap();
 
-    let mut silent_frames: Vec<bool> = Vec::new();
+    let mut silent_frames: Vec<bool>;
     // Detect silent frames
     {
         let mut sound_decoder = Decoder::new(&sound.stdout[..]);
@@ -100,7 +99,45 @@ fn main() {
         }
     }
 
-    println!("{:?}", silent_frames);
+    // Compute speedup ranges
+    // Note: speedup ranges contain frames,
+    // but those are AUDIO frames! Audio frames
+    // might not match video frames.
+    let mut frames_speedup: Vec<SpeedupRange> = Vec::new();
+    {
+        let mut current_speedup = SpeedupRange::new(
+            0,
+            0,
+            if silent_frames[0] {
+                args.speed_loud
+            } else {
+                args.speed_silent
+            },
+        );
+        let mut current_speedup_loudness: bool = silent_frames[0];
+        for i in 1..silent_frames.len() {
+            if silent_frames[i] == current_speedup_loudness {
+                continue;
+            } else {
+                current_speedup.frame_to = i;
+                frames_speedup.push(current_speedup);
+                current_speedup = SpeedupRange::new(
+                    i,
+                    i,
+                    if silent_frames[i] {
+                        args.speed_loud
+                    } else {
+                        args.speed_silent
+                    },
+                );
+                current_speedup_loudness = silent_frames[i];
+            }
+        }
+        current_speedup.frame_to = silent_frames.len() - 1;
+        frames_speedup.push(current_speedup);
+    }
+
+    println!("{:#?}", frames_speedup);
 }
 
 #[derive(StructOpt)]
@@ -141,4 +178,20 @@ struct Cli {
     /// get cut out/sped up as they are considered silent.
     #[structopt(long = "frame_margin", default_value = "2")]
     frame_margin: usize,
+}
+
+#[derive(Debug)]
+struct SpeedupRange {
+    frame_from: usize,
+    frame_to: usize,
+    speedup_rate: f32,
+}
+impl SpeedupRange {
+    pub fn new(frame_from: usize, frame_to: usize, speedup_rate: f32) -> SpeedupRange {
+        SpeedupRange {
+            frame_from,
+            frame_to,
+            speedup_rate,
+        }
+    }
 }
