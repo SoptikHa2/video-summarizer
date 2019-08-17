@@ -158,20 +158,62 @@ fn main() {
 }
 
 fn get_video_metadata(filename: &str) -> VideoMetadata {
+    let regex_video_duration: Regex = Regex::new(r"DURATION\s+: [0-9:.]+").unwrap();
+    let regex_fps: Regex = Regex::new(r"[0-9]+ fps").unwrap();
+    let regex_frames: Regex = Regex::new(r"frame=\s+[0-9]+").unwrap();
+
     let mut metadata_command = Command::new("ffmpeg")
         .args(&["-i", filename, "-f", "null", "-"])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
         .stdin(Stdio::null())
         .output()
         .expect("Failed to spawn video metadata process");
 
-    let output_string = String::from_utf8(metadata_command.stdout).unwrap();
+    let output_string = String::from_utf8(metadata_command.stderr).unwrap();
+
+    let duration_position = regex_video_duration
+        .find(&output_string)
+        .expect("Failed to extract video duration.");
+    let duration_in_string = duration_position.as_str().split(":").collect::<Vec<&str>>();
+    let duration_seconds: f32 = duration_in_string.last().unwrap().parse().expect(&format!(
+        "Failed to parse video duration from {}",
+        duration_in_string.last().unwrap()
+    ));
+
+    let fps_position = regex_fps
+        .find(&output_string)
+        .expect("Failed to extract fps.");
+    let fps_in_string = fps_position
+        .as_str()
+        .split_whitespace()
+        .collect::<Vec<&str>>();
+    let fps: f32 = fps_in_string.first().unwrap().parse().expect(&format!(
+        "Failed to parse fps from {}",
+        fps_in_string.first().unwrap()
+    ));
+
+    let total_frames_position = regex_frames
+        .find_iter(&output_string)
+        .last()
+        .expect("Failed to extract total video frames.");
+    let total_frames_in_string = total_frames_position
+        .as_str()
+        .split_whitespace()
+        .collect::<Vec<&str>>();
+    let total_frames: usize = total_frames_in_string
+        .last()
+        .unwrap()
+        .parse()
+        .expect(&format!(
+            "Failed to parse total video frames from {}",
+            total_frames_in_string.last().unwrap()
+        ));
 
     VideoMetadata {
-        duration_seconds: 0.0,
-        fps: 0.0,
-        total_frames: 0,
+        duration_seconds,
+        fps,
+        total_frames,
     }
 }
 
