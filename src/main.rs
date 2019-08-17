@@ -4,8 +4,6 @@ use regex::Regex;
 use structopt::StructOpt;
 
 use std::fs;
-use std::fs::{File, OpenOptions};
-use std::io::{prelude::*, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -140,9 +138,9 @@ fn main() {
                     i,
                     i,
                     if silent_frames[i] {
-                        args.speed_loud
-                    } else {
                         args.speed_silent
+                    } else {
+                        args.speed_loud
                     },
                 );
                 current_speedup_loudness = silent_frames[i];
@@ -178,42 +176,26 @@ fn main() {
             .expect("Failed to create tmp directory.");
 
         // Split and speedup videos, get these part names in order.
-        let video_part_paths = video_frames_speedup
-            .iter()
-            .map(|frame| {
-                speedup_video_part(
-                    args.input.to_str().unwrap(),
-                    &frame,
-                    &video_metadata,
-                    &tempdir_path,
-                )
-            })
-            .collect::<Vec<Option<PathBuf>>>();
-
-        eprintln!("{:#?}", video_part_paths);
+        let video_part_paths = video_frames_speedup.iter().map(|frame| {
+            speedup_video_part(
+                args.input.to_str().unwrap(),
+                &frame,
+                &video_metadata,
+                &tempdir_path,
+            )
+        });
 
         // Create result mpeg file, and add concat everything
-        let mut result_file = File::create(&args.output).expect("Failed to create temp file.");
-        result_file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .append(true)
-            .open(&args.output)
-            .expect("Failed to open temp result file.");
-        for video_part_path in video_part_paths {
-            if let Some(path) = video_part_path {
-                let mut buffer: Vec<u8> = Vec::new();
-                File::open(path)
-                    .expect("Failed to open temporarily sped up video file.")
-                    .read_to_end(&mut buffer)
-                    .expect("Failed to read temporarily sped up video file.");
-                result_file
-                    .write_all(&buffer[..])
-                    .expect("Failed to write to result file.");
-            }
-        }
+        concatenate_video_to_file(
+            &video_part_paths
+                .filter(|p| p.is_some())
+                .map(|p| String::from(p.unwrap().to_str().unwrap()))
+                .collect::<Vec<String>>()
+                .join("|"),
+            args.output,
+        );
 
-        //fs::remove_dir_all(&tempdir_path).expect("Failed to remove tmp directory.");
+        fs::remove_dir_all(&tempdir_path).expect("Failed to remove tmp directory.");
     }
 }
 
@@ -350,6 +332,22 @@ fn speedup_video_part(
     speedup_command.wait().unwrap();
 
     Some(speedup_video_path)
+}
+
+fn concatenate_video_to_file(filenames_delimited_by_pipe: &str, output_path: PathBuf) {
+    Command::new("ffmpeg")
+        .args(&[
+            "-i",
+            &format!("concat:{}", filenames_delimited_by_pipe),
+            output_path.to_str().unwrap(),
+        ])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("Failed to run video concatenate process")
+        .wait()
+        .expect("Failed to concatenate video files.");
 }
 
 #[derive(StructOpt)]
