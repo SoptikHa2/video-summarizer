@@ -1,8 +1,12 @@
 use minimp3::{Decoder, Error};
 use regex::Regex;
 use structopt::StructOpt;
+use tempfile::TempDir;
 
 use std::ffi::OsStr;
+use std::fs;
+use std::fs::{File, OpenOptions};
+use std::io::{prelude::*, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
@@ -37,6 +41,12 @@ fn main() {
             ));
         }
     }
+    // If output file exists, delete it
+    if args.output.to_str().expect("Failed to get output") != "-" {
+        if args.output.exists() {
+            fs::remove_file(&args.output).expect("Failed to delete existing output file.");
+        }
+    }
 
     // Get general video metadata
     let video_metadata: VideoMetadata = get_video_metadata(args.input.to_str().unwrap());
@@ -45,7 +55,7 @@ fn main() {
     // Detect silent frames
     {
         // Extract sound from video
-        let mut sound = Command::new("ffmpeg")
+        let sound = Command::new("ffmpeg")
             .arg("-i")
             .arg(args.input.to_str().unwrap())
             .arg("-vn")
@@ -114,7 +124,7 @@ fn main() {
     // Note: speedup ranges contain frames,
     // but those are AUDIO frames! Audio frames
     // might not match video frames.
-    let mut frames_speedup: Vec<SpeedupRange> = Vec::new();
+    let mut audio_frames_speedup: Vec<SpeedupRange> = Vec::new();
     {
         let mut current_speedup = SpeedupRange::new(
             0,
@@ -131,7 +141,7 @@ fn main() {
                 continue;
             } else {
                 current_speedup.frame_to = i;
-                frames_speedup.push(current_speedup);
+                audio_frames_speedup.push(current_speedup);
                 current_speedup = SpeedupRange::new(
                     i,
                     i,
@@ -145,16 +155,57 @@ fn main() {
             }
         }
         current_speedup.frame_to = silent_frames.len() - 1;
-        frames_speedup.push(current_speedup);
+        audio_frames_speedup.push(current_speedup);
     }
+    let video_frames_speedup: Vec<SpeedupRange>;
     // Figure out where to cut video
     {
         // Map speedup ranges to video frames
-        let last_audio_frame = frames_speedup.last().unwrap().frame_to;
+        let last_audio_frame = audio_frames_speedup.last().unwrap().frame_to;
         let last_video_frame = video_metadata.total_frames;
         let rate: f32 = last_video_frame as f32 / last_audio_frame as f32;
+        video_frames_speedup = audio_frames_speedup
+            .iter()
+            .map(|range| {
+                SpeedupRange::new(
+                    (range.frame_from as f32 * rate) as usize,
+                    (range.frame_to as f32 * rate) as usize,
+                    range.speedup_rate,
+                )
+            })
+            .collect();
     }
-    println!("{:#?}", frames_speedup);
+
+    // Cut the video segments, one after another, into memory,
+    // and append them into output file one by one.
+    {
+        let tempdir: TempDir = tempfile::tempdir().expect("Failed to create temporary directory.");
+        let tempfile_path = &tempdir.path().join("mpv-output.mpv");
+        let tempfile_path_str = tempfile_path.to_str().unwrap();
+        let mut tempfile = File::create(tempfile_path).expect("Failed to create temp file.");
+        tempfile = OpenOptions::new()
+            .write(true)
+            .append(true)
+            .read(false)
+            .open(tempfile_path)
+            .expect("Failed to open temp result file.");
+        eprintln!("Opened file {}", tempfile_path_str);
+
+        for frame in video_frames_speedup {
+            eprintln!("Processing another frame");
+            let video_segment = cut_video_and_speedup(
+                args.input.to_str().unwrap(),
+                frame.frame_from,
+                frame.frame_to,
+                frame.speedup_rate,
+                &video_metadata,
+            );
+            eprintln!("Cut");
+            concatenate_video_to_mpv(&mut tempfile, video_segment);
+        }
+        eprintln!("Done frames");
+        convert_video_back_to_input_format(args.output.to_str().unwrap(), &tempfile_path_str);
+    }
 }
 
 fn get_video_metadata(filename: &str) -> VideoMetadata {
@@ -215,6 +266,104 @@ fn get_video_metadata(filename: &str) -> VideoMetadata {
         fps,
         total_frames,
     }
+}
+
+/// Cut and speedup video, returning filename
+fn cut_video_and_speedup(
+    input_filename: &str,
+    frame_start: usize,
+    frame_end: usize,
+    speedup_rate: f32,
+    metadata: &VideoMetadata,
+) -> Vec<u8> {
+    let seconds_to_start_cut: f32 = frame_start as f32 / metadata.fps;
+    let total_frames = frame_end - frame_start;
+    let input_file_extension = input_filename.split(".").last().unwrap();
+    let inverted_speedup_rate = 1.0 / speedup_rate;
+
+    let cut_command = Command::new("ffmpeg")
+        .args(&[
+            "-ss",
+            &format!("{}", seconds_to_start_cut),
+            "-i",
+            input_filename,
+            "-frames:v",
+            &format!("{}", total_frames),
+            "-f",
+            input_file_extension,
+            "-",
+        ])
+        .stderr(Stdio::null())
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .output()
+        .expect("Failed to cut input video.");
+
+    eprintln!("Cut finished");
+    let cutted_video = &cut_command.stdout;
+
+    let mut speedup_command = Command::new("ffmpeg")
+        .args(&[
+            "-i",
+            "-",
+            "-filter_complex",
+            &format!(
+                "\"[0:v]setpts={}*PTS[v];[0:a]atempo={}[a]\"",
+                inverted_speedup_rate, speedup_rate
+            ),
+            "-map",
+            "\"[v]\"",
+            "-map",
+            "\"[a]\"",
+            "-",
+        ])
+        .stderr(Stdio::null())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn speedup video process.");
+
+    speedup_command
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(&cutted_video[..])
+        .unwrap();
+
+    speedup_command.wait_with_output().unwrap().stdout
+}
+
+/// Takes path to file where should be .mpv file (but doesn't have to be there).
+/// Afterwards, takes video data, converts it to mpv, and appends it to existing mpv file.
+fn concatenate_video_to_mpv(video_as_file: &mut File, video_to_append: Vec<u8>) {
+    let mut convert_to_mpv = Command::new("ffmpeg")
+        .args(&["-i", "-", "-f", "mpv", "-"])
+        .stderr(Stdio::null())
+        .stdout(Stdio::piped())
+        .stdin(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn video convert process.");
+
+    convert_to_mpv
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(&video_to_append[..])
+        .unwrap();
+
+    let output = convert_to_mpv.wait_with_output().unwrap().stdout;
+
+    video_as_file
+        .write_all(&output[..])
+        .expect("Failed to write video to temp result file.");
+}
+
+/// Take temporary .mpv file and convert it to input filetype.
+fn convert_video_back_to_input_format(output_filename: &str, temporary_video: &str) {
+    let convert_command = Command::new("ffmpeg")
+        .args(&["-i", temporary_video, output_filename])
+        .spawn()
+        .expect("Failed to convert temporary video to output filename.");
 }
 
 #[derive(StructOpt)]
