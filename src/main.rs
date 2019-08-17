@@ -1,3 +1,4 @@
+use guid_create::GUID;
 use minimp3::{Decoder, Error};
 use regex::Regex;
 use structopt::StructOpt;
@@ -7,7 +8,7 @@ use std::ffi::OsStr;
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::{prelude::*, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 fn main() {
@@ -175,36 +176,53 @@ fn main() {
             })
             .collect();
     }
-
-    // Cut the video segments, one after another, into memory,
-    // and append them into output file one by one.
+    // Do the splitting, speed-uping, etc
     {
-        let tempdir: TempDir = tempfile::tempdir().expect("Failed to create temporary directory.");
-        let tempfile_path = &tempdir.path().join("mpv-output.mpv");
-        let tempfile_path_str = tempfile_path.to_str().unwrap();
-        let mut tempfile = File::create(tempfile_path).expect("Failed to create temp file.");
+        // Create temporary directory where we will store everything.
+        let tempdir_path = std::env::temp_dir().join(GUID::rand().to_string());
+        fs::DirBuilder::new()
+            .create(&tempdir_path)
+            .expect("Failed to create tmp directory.");
+
+        eprintln!("{:?}", tempdir_path);
+
+        // Split and speedup videos, get these part names in order.
+        let video_part_paths = video_frames_speedup
+            .iter()
+            .map(|frame| {
+                speedup_video_part(
+                    args.input.to_str().unwrap(),
+                    &frame,
+                    &video_metadata,
+                    &tempdir_path,
+                )
+            })
+            .collect::<Vec<Option<PathBuf>>>();
+        eprintln!("{:#?}", video_part_paths);
+
+        // Create new temp mpeg file, and add concat everything
+        let temp_result_path = tempdir_path.join("temp-result.mpeg");
+        let mut tempfile = File::create(&temp_result_path).expect("Failed to create temp file.");
         tempfile = OpenOptions::new()
+            .read(true)
             .write(true)
             .append(true)
-            .read(false)
-            .open(tempfile_path)
+            .open(&temp_result_path)
             .expect("Failed to open temp result file.");
-        eprintln!("Opened file {}", tempfile_path_str);
-
-        for frame in video_frames_speedup {
-            eprintln!("Processing another frame");
-            let video_segment = cut_video_and_speedup(
-                args.input.to_str().unwrap(),
-                frame.frame_from,
-                frame.frame_to,
-                frame.speedup_rate,
-                &video_metadata,
-            );
-            eprintln!("Cut");
-            concatenate_video_to_mpv(&mut tempfile, video_segment);
+        for video_part_path in video_part_paths {
+            if let Some(path) = video_part_path {
+                let mut buffer: Vec<u8> = Vec::new();
+                File::open(path)
+                    .expect("Failed to open temporarily sped up video file.")
+                    .read_to_end(&mut buffer)
+                    .expect("Failed to read temporarily sped up video file.");
+                tempfile.write_all(&buffer[..]);
+            }
         }
-        eprintln!("Done frames");
-        convert_video_back_to_input_format(args.output.to_str().unwrap(), &tempfile_path_str);
+
+        copy_and_convert_to_target_location(temp_result_path, args.output);
+
+        fs::remove_dir_all(&tempdir_path).expect("Failed to remove tmp directory.");
     }
 }
 
@@ -213,7 +231,7 @@ fn get_video_metadata(filename: &str) -> VideoMetadata {
     let regex_fps: Regex = Regex::new(r"[0-9]+ fps").unwrap();
     let regex_frames: Regex = Regex::new(r"frame=\s+[0-9]+").unwrap();
 
-    let mut metadata_command = Command::new("ffmpeg")
+    let metadata_command = Command::new("ffmpeg")
         .args(&["-i", filename, "-f", "null", "-"])
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
@@ -268,108 +286,107 @@ fn get_video_metadata(filename: &str) -> VideoMetadata {
     }
 }
 
-/// Cut and speedup video, returning filename
-fn cut_video_and_speedup(
-    input_filename: &str,
-    frame_start: usize,
-    frame_end: usize,
-    speedup_rate: f32,
+/// Take input video, separate one part from it,
+/// speed it up and return path to the sped up video.
+///
+/// If speed is lower than 0.5, panic.
+/// If speed is higher than 100, return `None`.
+fn speedup_video_part(
+    input_path: &str,
+    range: &SpeedupRange,
     metadata: &VideoMetadata,
-) -> Vec<u8> {
-    let seconds_to_start_cut: f32 = frame_start as f32 / metadata.fps;
-    let total_frames = frame_end - frame_start;
-    let input_file_extension = input_filename.split(".").last().unwrap();
-    let inverted_speedup_rate = 1.0 / speedup_rate;
+    tempdir_path: &std::path::Path,
+) -> Option<PathBuf> {
+    if range.speedup_rate < 0.5 {
+        panic!("Fatal error: speed rate is lower than 0.5.");
+    }
+    if range.speedup_rate > 100.0 {
+        return None;
+    }
 
-    let cut_command = Command::new("ffmpeg")
+    let cut_video_filename = GUID::rand().to_string();
+    let speedup_video_filename = GUID::rand().to_string();
+    let cut_video_path = tempdir_path.join(Path::new(&cut_video_filename));
+    let speedup_video_path = tempdir_path.join(Path::new(&speedup_video_filename));
+
+    let seconds_to_start_cut: f32 = range.frame_from as f32 / metadata.fps;
+    let inverted_speedup_rate = 1.0 / range.speedup_rate;
+
+    // Cut video
+    let mut cut_command = Command::new("ffmpeg")
         .args(&[
             "-ss",
             &format!("{}", seconds_to_start_cut),
             "-i",
-            input_filename,
+            input_path,
             "-frames:v",
-            &format!("{}", total_frames),
+            &format!("{}", range.frame_to - range.frame_from),
             "-f",
-            input_file_extension,
-            "-",
+            "mpeg",
+            cut_video_path.to_str().unwrap(),
         ])
         .stderr(Stdio::null())
         .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .output()
+        .stdout(Stdio::null())
+        .spawn()
         .expect("Failed to cut input video.");
+    cut_command.wait().unwrap();
 
-    eprintln!("Cut finished");
-    let cutted_video = &cut_command.stdout;
+    eprintln!("Cut video exists: {}", cut_video_path.exists());
 
+    // Speedup video
     let mut speedup_command = Command::new("ffmpeg")
         .args(&[
             "-i",
-            "-",
+            cut_video_path.to_str().unwrap(),
             "-filter_complex",
             &format!(
-                "\"[0:v]setpts={}*PTS[v];[0:a]atempo={}[a]\"",
-                inverted_speedup_rate, speedup_rate
+                "[0:v]setpts={}*PTS[v];[0:a]atempo={}[a]",
+                inverted_speedup_rate, range.speedup_rate
             ),
             "-map",
-            "\"[v]\"",
+            "[v]",
             "-map",
-            "\"[a]\"",
-            "-",
+            "[a]",
+            "-f",
+            "mpeg",
+            speedup_video_path.to_str().unwrap(),
         ])
-        .stderr(Stdio::null())
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
         .spawn()
         .expect("Failed to spawn speedup video process.");
 
-    speedup_command
-        .stdin
-        .as_mut()
-        .unwrap()
-        .write_all(&cutted_video[..])
-        .unwrap();
+    speedup_command.wait().unwrap();
 
-    speedup_command.wait_with_output().unwrap().stdout
+    eprintln!("Speedup video exists: {}", speedup_video_path.exists());
+
+    Some(speedup_video_path)
 }
 
-/// Takes path to file where should be .mpv file (but doesn't have to be there).
-/// Afterwards, takes video data, converts it to mpv, and appends it to existing mpv file.
-fn concatenate_video_to_mpv(video_as_file: &mut File, video_to_append: Vec<u8>) {
-    let mut convert_to_mpv = Command::new("ffmpeg")
-        .args(&["-i", "-", "-f", "mpv", "-"])
+/// Take .mpeg temporary file, convert it to required file format
+/// and save it to ouput location.
+fn copy_and_convert_to_target_location(mpeg_file: PathBuf, target_location: PathBuf) {
+    Command::new("ffmpeg")
+        .args(&[
+            "-i",
+            mpeg_file.to_str().unwrap(),
+            target_location.to_str().unwrap(),
+        ])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .stdout(Stdio::piped())
-        .stdin(Stdio::piped())
         .spawn()
-        .expect("Failed to spawn video convert process.");
-
-    convert_to_mpv
-        .stdin
-        .as_mut()
-        .unwrap()
-        .write_all(&video_to_append[..])
-        .unwrap();
-
-    let output = convert_to_mpv.wait_with_output().unwrap().stdout;
-
-    video_as_file
-        .write_all(&output[..])
-        .expect("Failed to write video to temp result file.");
-}
-
-/// Take temporary .mpv file and convert it to input filetype.
-fn convert_video_back_to_input_format(output_filename: &str, temporary_video: &str) {
-    let convert_command = Command::new("ffmpeg")
-        .args(&["-i", temporary_video, output_filename])
-        .spawn()
-        .expect("Failed to convert temporary video to output filename.");
+        .expect("Failed to spawn convert result file process.")
+        .wait()
+        .expect("Failed to run convert result file process.");
 }
 
 #[derive(StructOpt)]
 #[structopt(
     name = "Video Summarizer",
-    about = "Take a video, and change it's speed, depending on silent and loud parts.",
+    about = "Take a video, and change it's speed, depending on silent and loud parts. New video will be in .mpeg format for performance purposes.",
     rename_all = "kebab-case"
 )]
 struct Cli {
@@ -381,13 +398,24 @@ struct Cli {
     input: std::path::PathBuf,
     /// Output file
     ///
-    /// This is by default "old_filename.new.extension"
+    /// This is by default "old_filename.new.mpeg".
+    /// This will always be in .mpeg format, as it
+    /// would take about twice as much time to
+    /// return video in specified format.
     #[structopt(parse(from_os_str), short = "o", default_value = "")]
     output: std::path::PathBuf,
     /// Video speed when loud sound is detected.
+    ///
+    /// This has to be at least 0.5.
+    /// If this is larger than 100, loud parts of
+    /// the video will be dropped completely.
     #[structopt(long = "speed-loud", short = "l", default_value = "1")]
     speed_loud: f32,
     /// Video speed when no loud sound was detected.
+    ///
+    /// This has to be at least 0.5.
+    /// If this is larger than 100, silent parts
+    /// of the video will be dropped completely.
     #[structopt(long = "speed-silent", short = "s", default_value = "2")]
     speed_silent: f32,
     /// Threshold of silence. When sound gets under this threshold,
