@@ -2,9 +2,7 @@ use guid_create::GUID;
 use minimp3::{Decoder, Error};
 use regex::Regex;
 use structopt::StructOpt;
-use tempfile::TempDir;
 
-use std::ffi::OsStr;
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::{prelude::*, Write};
@@ -28,15 +26,10 @@ fn main() {
             args.output = PathBuf::from("-");
         } else {
             args.output = PathBuf::from(format!(
-                "{}.new.{}",
+                "{}.new.mpeg",
                 args.input
-                    .file_stem()
+                    .file_name()
                     .expect("Failed to get file stem from input file path.")
-                    .to_str()
-                    .unwrap(),
-                args.input
-                    .extension()
-                    .unwrap_or_else(|| OsStr::new(""))
                     .to_str()
                     .unwrap()
             ));
@@ -131,9 +124,9 @@ fn main() {
             0,
             0,
             if silent_frames[0] {
-                args.speed_loud
-            } else {
                 args.speed_silent
+            } else {
+                args.speed_loud
             },
         );
         let mut current_speedup_loudness: bool = silent_frames[0];
@@ -184,8 +177,6 @@ fn main() {
             .create(&tempdir_path)
             .expect("Failed to create tmp directory.");
 
-        eprintln!("{:?}", tempdir_path);
-
         // Split and speedup videos, get these part names in order.
         let video_part_paths = video_frames_speedup
             .iter()
@@ -198,16 +189,16 @@ fn main() {
                 )
             })
             .collect::<Vec<Option<PathBuf>>>();
+
         eprintln!("{:#?}", video_part_paths);
 
-        // Create new temp mpeg file, and add concat everything
-        let temp_result_path = tempdir_path.join("temp-result.mpeg");
-        let mut tempfile = File::create(&temp_result_path).expect("Failed to create temp file.");
-        tempfile = OpenOptions::new()
+        // Create result mpeg file, and add concat everything
+        let mut result_file = File::create(&args.output).expect("Failed to create temp file.");
+        result_file = OpenOptions::new()
             .read(true)
             .write(true)
             .append(true)
-            .open(&temp_result_path)
+            .open(&args.output)
             .expect("Failed to open temp result file.");
         for video_part_path in video_part_paths {
             if let Some(path) = video_part_path {
@@ -216,13 +207,13 @@ fn main() {
                     .expect("Failed to open temporarily sped up video file.")
                     .read_to_end(&mut buffer)
                     .expect("Failed to read temporarily sped up video file.");
-                tempfile.write_all(&buffer[..]);
+                result_file
+                    .write_all(&buffer[..])
+                    .expect("Failed to write to result file.");
             }
         }
 
-        copy_and_convert_to_target_location(temp_result_path, args.output);
-
-        fs::remove_dir_all(&tempdir_path).expect("Failed to remove tmp directory.");
+        //fs::remove_dir_all(&tempdir_path).expect("Failed to remove tmp directory.");
     }
 }
 
@@ -332,8 +323,6 @@ fn speedup_video_part(
         .expect("Failed to cut input video.");
     cut_command.wait().unwrap();
 
-    eprintln!("Cut video exists: {}", cut_video_path.exists());
-
     // Speedup video
     let mut speedup_command = Command::new("ffmpeg")
         .args(&[
@@ -352,7 +341,7 @@ fn speedup_video_part(
             "mpeg",
             speedup_video_path.to_str().unwrap(),
         ])
-        .stderr(Stdio::inherit())
+        .stderr(Stdio::null())
         .stdin(Stdio::null())
         .stdout(Stdio::null())
         .spawn()
@@ -360,27 +349,7 @@ fn speedup_video_part(
 
     speedup_command.wait().unwrap();
 
-    eprintln!("Speedup video exists: {}", speedup_video_path.exists());
-
     Some(speedup_video_path)
-}
-
-/// Take .mpeg temporary file, convert it to required file format
-/// and save it to ouput location.
-fn copy_and_convert_to_target_location(mpeg_file: PathBuf, target_location: PathBuf) {
-    Command::new("ffmpeg")
-        .args(&[
-            "-i",
-            mpeg_file.to_str().unwrap(),
-            target_location.to_str().unwrap(),
-        ])
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("Failed to spawn convert result file process.")
-        .wait()
-        .expect("Failed to run convert result file process.");
 }
 
 #[derive(StructOpt)]
