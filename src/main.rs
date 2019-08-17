@@ -3,8 +3,6 @@ use regex::Regex;
 use structopt::StructOpt;
 
 use std::ffi::OsStr;
-use std::fs::File;
-use std::io::{stdin, Read, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
@@ -41,24 +39,7 @@ fn main() {
     }
 
     // Get general video metadata
-    let mut video_data: Vec<u8> = Vec::new();
-    let video_metadata: VideoMetadata;
-    {
-        match args.input.to_str().unwrap() {
-            "-" => {
-                stdin()
-                    .read_to_end(&mut video_data)
-                    .expect("Failed to read from stdin.");
-            }
-            filename => {
-                File::open(filename)
-                    .expect("Failed to open input file.")
-                    .read_to_end(&mut video_data)
-                    .expect("Failed to read from input file.");
-            }
-        };
-        video_metadata = get_video_metadata(&video_data[..]);
-    }
+    let video_metadata: VideoMetadata = get_video_metadata(args.input.to_str().unwrap());
 
     let mut silent_frames: Vec<bool>;
     // Detect silent frames
@@ -176,24 +157,16 @@ fn main() {
     println!("{:#?}", frames_speedup);
 }
 
-fn get_video_metadata(file_data: &[u8]) -> VideoMetadata {
+fn get_video_metadata(filename: &str) -> VideoMetadata {
     let mut metadata_command = Command::new("ffmpeg")
-        .args(&["-i", "-", "-f", "null", "-"])
+        .args(&["-i", filename, "-f", "null", "-"])
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
-        .stdin(Stdio::piped())
-        .spawn()
+        .stdin(Stdio::null())
+        .output()
         .expect("Failed to spawn video metadata process");
 
-    metadata_command
-        .stdin
-        .as_mut()
-        .unwrap()
-        .write_all(file_data)
-        .unwrap();
-    let output_string = metadata_command
-        .wait_with_output()
-        .expect("Failed to get output from video metadata process.");
+    let output_string = String::from_utf8(metadata_command.stdout).unwrap();
 
     VideoMetadata {
         duration_seconds: 0.0,
