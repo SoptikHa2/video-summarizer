@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 minimp3 = "0.3.3"
 structopt = "0.2.18"
+regex = "1.2.1"

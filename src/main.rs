@@ -1,8 +1,10 @@
-// mp3 parser and cli
 use minimp3::{Decoder, Error};
+use regex::Regex;
 use structopt::StructOpt;
 
 use std::ffi::OsStr;
+use std::fs::File;
+use std::io::{stdin, Read, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
@@ -17,11 +19,18 @@ fn main() {
         == 0
     {
         if args.input.to_str().expect("Failed to get input filename.") == "-" {
+            // TODO: Fix sound extraction
+            eprintln!("Piping video in isn't supported yet. Sorry!");
+            return;
             args.output = PathBuf::from("-");
         } else {
             args.output = PathBuf::from(format!(
                 "{}.new.{}",
-                args.input.file_stem().unwrap().to_str().unwrap(),
+                args.input
+                    .file_stem()
+                    .expect("Failed to get file stem from input file path.")
+                    .to_str()
+                    .unwrap(),
                 args.input
                     .extension()
                     .unwrap_or_else(|| OsStr::new(""))
@@ -31,23 +40,44 @@ fn main() {
         }
     }
 
-    let sound: std::process::Output = Command::new("ffmpeg")
-        .arg("-i")
-        .arg(args.input.to_str().unwrap())
-        .arg("-vn")
-        .arg("-f")
-        .arg("mp3")
-        .arg("-")
-        .stdout(Stdio::piped())
-        .stdin(Stdio::inherit())
-        .stderr(Stdio::null())
-        .output()
-        .unwrap();
+    // Get general video metadata
+    let mut video_data: Vec<u8> = Vec::new();
+    let video_metadata: VideoMetadata;
+    {
+        match args.input.to_str().unwrap() {
+            "-" => {
+                stdin()
+                    .read_to_end(&mut video_data)
+                    .expect("Failed to read from stdin.");
+            }
+            filename => {
+                File::open(filename)
+                    .expect("Failed to open input file.")
+                    .read_to_end(&mut video_data)
+                    .expect("Failed to read from input file.");
+            }
+        };
+        video_metadata = get_video_metadata(&video_data[..]);
+    }
 
     let mut silent_frames: Vec<bool>;
     // Detect silent frames
     {
-        let mut sound_decoder = Decoder::new(&sound.stdout[..]);
+        // Extract sound from video
+        let mut sound = Command::new("ffmpeg")
+            .arg("-i")
+            .arg(args.input.to_str().unwrap())
+            .arg("-vn")
+            .arg("-f")
+            .arg("mp3")
+            .arg("-")
+            .stdout(Stdio::piped())
+            .stdin(Stdio::null())
+            .stderr(Stdio::null())
+            .output()
+            .expect("Failed to spawn sound extract process.");
+        let output = sound.stdout;
+        let mut sound_decoder = Decoder::new(&output[..]);
         let mut sound_averages: Vec<usize> = Vec::new();
         let mut sound_max: usize = 0;
         let mut all_frames_data: Vec<Vec<i16>> = Vec::new();
@@ -136,8 +166,40 @@ fn main() {
         current_speedup.frame_to = silent_frames.len() - 1;
         frames_speedup.push(current_speedup);
     }
-
+    // Figure out where to cut video
+    {
+        // Map speedup ranges to video frames
+        let last_audio_frame = frames_speedup.last().unwrap().frame_to;
+        let last_video_frame = video_metadata.total_frames;
+        let rate: f32 = last_video_frame as f32 / last_audio_frame as f32;
+    }
     println!("{:#?}", frames_speedup);
+}
+
+fn get_video_metadata(file_data: &[u8]) -> VideoMetadata {
+    let mut metadata_command = Command::new("ffmpeg")
+        .args(&["-i", "-", "-f", "null", "-"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .stdin(Stdio::piped())
+        .spawn()
+        .expect("Failed to spawn video metadata process");
+
+    metadata_command
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(file_data)
+        .unwrap();
+    let output_string = metadata_command
+        .wait_with_output()
+        .expect("Failed to get output from video metadata process.");
+
+    VideoMetadata {
+        duration_seconds: 0.0,
+        fps: 0.0,
+        total_frames: 0,
+    }
 }
 
 #[derive(StructOpt)]
@@ -194,4 +256,10 @@ impl SpeedupRange {
             speedup_rate,
         }
     }
+}
+
+struct VideoMetadata {
+    fps: f32,
+    duration_seconds: f32,
+    total_frames: usize,
 }
