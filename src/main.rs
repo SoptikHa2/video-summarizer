@@ -34,14 +34,18 @@ fn main() {
                     .expect("Failed to get file stem from input file path.")
                     .to_str()
                     .unwrap(),
-                args.input
-                    .file_name()
-                    .expect("Failed to get file name from input file path.")
-                    .to_str()
-                    .unwrap()
-                    .split(".")
-                    .last()
-                    .unwrap()
+                if args.fast {
+                    "mpeg"
+                } else {
+                    args.input
+                        .file_name()
+                        .expect("Failed to get file name from input file path.")
+                        .to_str()
+                        .unwrap()
+                        .split(".")
+                        .last()
+                        .unwrap()
+                }
             ));
         }
     }
@@ -217,7 +221,7 @@ fn main() {
         );
         println!(
             "It will take about {} seconds to process {} segments.",
-            audio_segments_speedup.len() / 2,
+            audio_segments_speedup.len() / if args.fast { 11 } else { 2 },
             audio_segments_speedup.len()
         );
         let time_total = video_metadata.duration_seconds;
@@ -279,6 +283,7 @@ fn main() {
                 &frame,
                 &video_metadata,
                 &tempdir_path,
+                args.fast,
             ));
             current_part += 1.0;
         }
@@ -393,6 +398,7 @@ fn speedup_video_part(
     range: &SpeedupRange,
     metadata: &VideoMetadata,
     tempdir_path: &std::path::Path,
+    fast: bool,
 ) -> Option<PathBuf> {
     if range.speedup_rate < 0.5 {
         panic!("Fatal error: speed rate is lower than 0.5.");
@@ -407,7 +413,11 @@ fn speedup_video_part(
         return None;
     }
 
-    let extension = input_path.split(".").last().unwrap().trim();
+    let extension = if fast {
+        "mpeg"
+    } else {
+        input_path.split(".").last().unwrap().trim()
+    };
 
     let cut_video_filename = format!("{}.{}", GUID::rand().to_string(), extension);
     let speedup_video_filename = format!("{}.{}", GUID::rand().to_string(), extension);
@@ -565,6 +575,10 @@ struct Cli {
     /// This includes estimated run time and time saved on the video.
     #[structopt(long = "stats")]
     show_stats: bool,
+    /// Encode resulting video in MPEG. This will probably make resolution
+    /// worse, but will speed up the whole process a LOT.
+    #[structopt(long = "fast")]
+    fast: bool,
 }
 
 #[derive(Debug)]
