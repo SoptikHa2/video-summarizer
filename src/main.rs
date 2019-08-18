@@ -363,8 +363,10 @@ fn get_video_metadata(filename: &str) -> VideoMetadata {
         .expect("Failed to get total number of frames via ffprobe.");
     let total_frames_string = String::from_utf8(total_frames_command.stdout).unwrap();
     let total_frames_string = total_frames_string.split("=").last().unwrap().trim();
-    let total_frames_result: Result<usize, std::num::ParseIntError> = total_frames_string.parse::<usize>();
-    let total_frames: usize = total_frames_result.unwrap_or(duration_seconds as usize * fps as usize);
+    let total_frames_result: Result<usize, std::num::ParseIntError> =
+        total_frames_string.parse::<usize>();
+    let total_frames: usize =
+        total_frames_result.unwrap_or(duration_seconds as usize * fps as usize);
 
     VideoMetadata {
         duration_seconds,
@@ -469,8 +471,6 @@ fn concatenate_video_to_file(filenames: Vec<&str>, tempdir_path: &PathBuf, outpu
         )
         .expect("Failed to write to file register.");
 
-    eprintln!("files.txt exists: {}", filenames_register_path.exists());
-
     Command::new("ffmpeg")
         .args(&[
             "-f",
@@ -481,11 +481,13 @@ fn concatenate_video_to_file(filenames: Vec<&str>, tempdir_path: &PathBuf, outpu
             tempdir_path.join("files.txt").to_str().unwrap(),
             "-c",
             "copy",
+            "-f",
+            "mpeg",
             output_path.to_str().unwrap(),
         ])
         .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::inherit())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::null())
         .spawn()
         .expect("Failed to run video concatenate process")
         .wait()
