@@ -223,14 +223,6 @@ fn main() {
         if args.speed_loud >= 100.0 {
             real_duration_in_loudness = 0.0;
         }
-        eprintln!(
-            "total: {}\n raw silence: {}\n raw loud: {}\n real silence: {}\nreal loud: {}",
-            time_total,
-            raw_duration_in_silence,
-            raw_duration_in_loudness,
-            real_duration_in_silence,
-            real_duration_in_loudness
-        );
         let real_duration = real_duration_in_silence + real_duration_in_loudness;
         println!(
             "Estimated time saved is {} minutes ({}%).",
