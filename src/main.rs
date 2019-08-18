@@ -220,9 +220,10 @@ fn main() {
             silent_percentage_of_video * 100.0
         );
         println!(
-            "It will take about {} seconds to process {} segments.",
-            audio_segments_speedup.len() / if args.fast { 11 } else { 2 },
-            audio_segments_speedup.len()
+            "It will take about {} seconds to process {} segments with flawless quality, or about {} seconds with watchable quality.",
+                audio_segments_speedup.len(),
+                audio_segments_speedup.len() / 3,
+                video_metadata.duration_seconds as usize * 2
         );
         let time_total = video_metadata.duration_seconds;
         let raw_duration_in_silence = silent_percentage_of_video * time_total;
@@ -262,7 +263,20 @@ fn main() {
             })
             .collect();
     }
-    // Do the splitting, speed-uping, etc
+
+    // Tell ffmpeg to do it (slower, best resolution, doesn't use temp files)
+    if !args.fast {
+        let filter = generate_complex_speedup_filter(&video_segments_speedup, &video_metadata);
+        if !args.quiet {
+            eprintln!(
+                "Starting ffmpeg process. Come back in about {} minutes.",
+                (video_metadata.duration_seconds / 30.0) as usize
+            );
+            eprintln!("If you need result fast and don't care about resolution, use --fast flag. It's much faster and generally pretty watchable.");
+        }
+        speedup_using_complex_filter(&args.input, &args.output, &filter);
+    } else
+    // Do the splitting, speed-uping, etc manually (fastest, worst result)
     {
         // Create temporary directory where we will store everything.
         let tempdir_path = std::env::temp_dir().join(GUID::rand().to_string());
@@ -398,7 +412,7 @@ fn speedup_video_part(
     range: &SpeedupRange,
     metadata: &VideoMetadata,
     tempdir_path: &std::path::Path,
-    fast: bool,
+    force_mpeg: bool,
 ) -> Option<PathBuf> {
     if range.speedup_rate < 0.5 {
         panic!("Fatal error: speed rate is lower than 0.5.");
@@ -413,7 +427,7 @@ fn speedup_video_part(
         return None;
     }
 
-    let extension = if fast {
+    let extension = if force_mpeg {
         "mpeg"
     } else {
         input_path.split(".").last().unwrap().trim()
@@ -522,6 +536,52 @@ fn concatenate_video_to_file(filenames: Vec<&str>, tempdir_path: &PathBuf, outpu
         .expect("Failed to concatenate video files.");
 }
 
+fn speedup_using_complex_filter(input: &PathBuf, output: &PathBuf, complex_filter: &str) {
+    Command::new("ffmpeg")
+        .args(&[
+            "-i",
+            input.to_str().unwrap(),
+            "-filter_complex",
+            complex_filter,
+            output.to_str().unwrap(),
+        ])
+        .stdin(Stdio::null())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("Failed to spawn speedup via complex filter.")
+        .wait()
+        .expect("Failed to run speedup via complex filter.");
+}
+
+fn generate_complex_speedup_filter(ranges: &Vec<SpeedupRange>, metadata: &VideoMetadata) -> String {
+    let mut complex_filter = String::new();
+    let mut idx: usize = 1;
+    for range in ranges {
+        if range.frame_to - range.frame_from == 0 {
+            continue;
+        }
+        let seconds_from: f32 = range.frame_from as f32 / metadata.fps;
+        let seconds_to: f32 = range.frame_to as f32 / metadata.fps;
+        let inverted_speedup = 1.0 / range.speedup_rate;
+        complex_filter.push_str(&format!(
+            "[0:v]trim={}:{},setpts={}*(PTS-STARTPTS)[v{}];",
+            seconds_from, seconds_to, inverted_speedup, idx
+        ));
+        complex_filter.push_str(&format!(
+            "[0:a]atrim={}:{},asetpts=PTS-STARTPTS,atempo={}[a{}];",
+            seconds_from, seconds_to, range.speedup_rate, idx
+        ));
+        idx += 1;
+    }
+    for i in 1..idx {
+        complex_filter.push_str(&format!("[v{}][a{}]", i, i));
+    }
+    complex_filter.push_str(&format!("concat=n={}:v=1:a=1", idx - 1));
+
+    complex_filter
+}
+
 #[derive(StructOpt)]
 #[structopt(
     name = "Video Summarizer",
@@ -566,7 +626,7 @@ struct Cli {
     ///
     /// Use this settings if beginning/end of sentences
     /// get cut out/sped up as they are considered silent.
-    #[structopt(long = "frame_margin", default_value = "2")]
+    #[structopt(long = "frame-margin", default_value = "2")]
     frame_margin: usize,
     /// Do not print progress information.
     #[structopt(long = "quiet", short = "q")]
