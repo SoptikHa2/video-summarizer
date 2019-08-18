@@ -154,9 +154,6 @@ fn main() {
     }
 
     // Compute speedup ranges
-    // Note: speedup ranges contain frames,
-    // but those are AUDIO frames! Audio frames
-    // might not match video frames.
     let mut silent_segments_count: usize = 0;
     let mut audio_segments_speedup: Vec<SpeedupRange> = Vec::new();
     {
@@ -221,9 +218,9 @@ fn main() {
         );
         println!(
             "It will take about {} seconds to process {} segments with flawless quality, or about {} seconds with watchable quality.",
+                video_metadata.duration_seconds as usize * 2,
                 audio_segments_speedup.len(),
                 audio_segments_speedup.len() / 3,
-                video_metadata.duration_seconds as usize * 2
         );
         let time_total = video_metadata.duration_seconds;
         let raw_duration_in_silence = silent_percentage_of_video * time_total;
@@ -521,8 +518,6 @@ fn concatenate_video_to_file(filenames: Vec<&str>, tempdir_path: &PathBuf, outpu
             "0",
             "-i",
             tempdir_path.join("files.txt").to_str().unwrap(),
-            "-c",
-            "copy",
             "-f",
             extension,
             output_path.to_str().unwrap(),
@@ -645,7 +640,6 @@ struct Cli {
     fast: bool,
 }
 
-#[derive(Debug)]
 struct SpeedupRange {
     frame_from: usize,
     frame_to: usize,
