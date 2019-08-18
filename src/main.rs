@@ -393,6 +393,12 @@ fn speedup_video_part(
         return None;
     }
 
+    // Sometimes things get wrong and we are said to cut video with 0 frames length
+    // Don't do anything in that case.
+    if range.frame_to - range.frame_from == 0 {
+        return None;
+    }
+
     let cut_video_filename = format!("{}.mpeg", GUID::rand().to_string());
     let speedup_video_filename = format!("{}.mpeg", GUID::rand().to_string());
     let cut_video_path = tempdir_path.join(Path::new(&cut_video_filename));
