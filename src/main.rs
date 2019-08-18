@@ -286,7 +286,7 @@ fn main() {
             args.output,
         );
 
-        //fs::remove_dir_all(&tempdir_path).expect("Failed to remove tmp directory.");
+        fs::remove_dir_all(&tempdir_path).expect("Failed to remove tmp directory.");
     }
 }
 
