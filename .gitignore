@@ -1,4 +1,3 @@
 /target
 **/*.rs.bk
-# Testing videos
-.webm
+Cargo.lock
