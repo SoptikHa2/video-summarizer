@@ -4,8 +4,14 @@ use regex::Regex;
 use structopt::StructOpt;
 
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+
+// TODO: Remove file GUID creation, use something predictable instead
+// sometimes GUID filenames might clash, even if its' very unlikely to happen.
+// Even with approx. 45min long video, the change of clash would be just
+// 5 : 5,316,911,983,139,663,491,615,228,241,121,400
 
 fn main() {
     let mut args: Cli = Cli::from_args();
@@ -18,7 +24,6 @@ fn main() {
         == 0
     {
         if args.input.to_str().expect("Failed to get input filename.") == "-" {
-            // TODO: Fix sound extraction
             eprintln!("Piping video in isn't supported yet. Sorry!");
             return;
             args.output = PathBuf::from("-");
@@ -40,12 +45,20 @@ fn main() {
         }
     }
 
+    if !args.quiet {
+        eprintln!("Extracting video metadata");
+    }
+
     // Get general video metadata
     let video_metadata: VideoMetadata = get_video_metadata(args.input.to_str().unwrap());
 
     let mut silent_frames: Vec<bool>;
     // Detect silent frames
     {
+        if !args.quiet {
+            eprintln!("Extracting audio");
+        }
+
         // Extract sound from video
         let sound = Command::new("ffmpeg")
             .arg("-i")
@@ -64,6 +77,11 @@ fn main() {
         let mut sound_averages: Vec<usize> = Vec::new();
         let mut sound_max: usize = 0;
         let mut all_frames_data: Vec<Vec<i16>> = Vec::new();
+
+        if !args.quiet {
+            eprintln!("Processing audio");
+        }
+
         // Save all frames data
         loop {
             match sound_decoder.next_frame() {
@@ -110,13 +128,26 @@ fn main() {
                 }
             }
         }
+
+        if !args.quiet {
+            eprintln!(
+                "Found {} silent video frames out of total {} frames.",
+                silent_frames
+                    .iter()
+                    .filter(|f| **f)
+                    .collect::<Vec<&bool>>()
+                    .len(),
+                silent_frames.len()
+            );
+        }
     }
 
     // Compute speedup ranges
     // Note: speedup ranges contain frames,
     // but those are AUDIO frames! Audio frames
     // might not match video frames.
-    let mut audio_frames_speedup: Vec<SpeedupRange> = Vec::new();
+    let mut silent_segments_count: usize = 0;
+    let mut audio_segments_speedup: Vec<SpeedupRange> = Vec::new();
     {
         let mut current_speedup = SpeedupRange::new(
             0,
@@ -127,13 +158,16 @@ fn main() {
                 args.speed_loud
             },
         );
+        if silent_frames[0] {
+            silent_segments_count += 1;
+        }
         let mut current_speedup_loudness: bool = silent_frames[0];
         for i in 1..silent_frames.len() {
             if silent_frames[i] == current_speedup_loudness {
                 continue;
             } else {
                 current_speedup.frame_to = i;
-                audio_frames_speedup.push(current_speedup);
+                audio_segments_speedup.push(current_speedup);
                 current_speedup = SpeedupRange::new(
                     i,
                     i,
@@ -144,19 +178,77 @@ fn main() {
                     },
                 );
                 current_speedup_loudness = silent_frames[i];
+                if silent_frames[i] {
+                    silent_segments_count += 1;
+                }
             }
         }
         current_speedup.frame_to = silent_frames.len() - 1;
-        audio_frames_speedup.push(current_speedup);
+        audio_segments_speedup.push(current_speedup);
     }
-    let video_frames_speedup: Vec<SpeedupRange>;
+
+    if !args.quiet {
+        eprintln!(
+            "Found {} silent video segments out of total {} segments.",
+            silent_segments_count,
+            audio_segments_speedup.len()
+        );
+    }
+
+    // If user says so, estimate runtime, time saved,
+    // print it and exit.
+    if args.show_stats {
+        let video_silent_frames = silent_frames
+            .iter()
+            .filter(|f| **f)
+            .collect::<Vec<&bool>>()
+            .len();
+        let silent_percentage_of_video = video_silent_frames as f32 / silent_frames.len() as f32;
+        println!(
+            "{}% of video is silent.",
+            silent_percentage_of_video * 100.0
+        );
+        println!(
+            "It will take about {} seconds to process {} segments.",
+            audio_segments_speedup.len() / 11,
+            audio_segments_speedup.len()
+        );
+        let time_total = video_metadata.duration_seconds;
+        let raw_duration_in_silence = silent_percentage_of_video * time_total;
+        let raw_duration_in_loudness = time_total - raw_duration_in_silence;
+        let mut real_duration_in_silence = raw_duration_in_silence * (1.0 / args.speed_silent);
+        let mut real_duration_in_loudness = raw_duration_in_loudness * (1.0 / args.speed_loud);
+        if args.speed_silent >= 100.0 {
+            real_duration_in_silence = 0.0;
+        }
+        if args.speed_loud >= 100.0 {
+            real_duration_in_loudness = 0.0;
+        }
+        eprintln!(
+            "total: {}\n raw silence: {}\n raw loud: {}\n real silence: {}\nreal loud: {}",
+            time_total,
+            raw_duration_in_silence,
+            raw_duration_in_loudness,
+            real_duration_in_silence,
+            real_duration_in_loudness
+        );
+        let real_duration = real_duration_in_silence + real_duration_in_loudness;
+        println!(
+            "Estimated time saved is {} minutes ({}%).",
+            (time_total - real_duration) / 60.0,
+            (time_total - real_duration) / time_total as f32
+        );
+        return;
+    }
+
+    let video_segments_speedup: Vec<SpeedupRange>;
     // Figure out where to cut video
     {
         // Map speedup ranges to video frames
-        let last_audio_frame = audio_frames_speedup.last().unwrap().frame_to;
+        let last_audio_frame = audio_segments_speedup.last().unwrap().frame_to;
         let last_video_frame = video_metadata.total_frames;
         let rate: f32 = last_video_frame as f32 / last_audio_frame as f32;
-        video_frames_speedup = audio_frames_speedup
+        video_segments_speedup = audio_segments_speedup
             .iter()
             .map(|range| {
                 SpeedupRange::new(
@@ -176,31 +268,39 @@ fn main() {
             .expect("Failed to create tmp directory.");
 
         // Split and speedup videos, get these part names in order.
-        let video_part_paths = video_frames_speedup.iter().map(|frame| {
-            speedup_video_part(
+        let mut video_part_paths: Vec<Option<PathBuf>> = Vec::new();
+        let mut current_part: f32 = 0.0;
+        let parts_len = video_segments_speedup.len() as f32;
+        for frame in video_segments_speedup {
+            if !args.quiet {
+                eprintln!("{}%", (current_part / parts_len) * 100.0);
+            }
+            video_part_paths.push(speedup_video_part(
                 args.input.to_str().unwrap(),
                 &frame,
                 &video_metadata,
                 &tempdir_path,
-            )
-        });
+            ));
+            current_part += 1.0;
+        }
 
         // Create result mpeg file, and add concat everything
         concatenate_video_to_file(
-            &video_part_paths
+            video_part_paths
+                .iter()
                 .filter(|p| p.is_some())
-                .map(|p| String::from(p.unwrap().to_str().unwrap()))
-                .collect::<Vec<String>>()
-                .join("|"),
+                .map(|p| (p.as_ref().unwrap().to_str().unwrap()))
+                .collect::<Vec<&str>>(),
+            &tempdir_path,
             args.output,
         );
 
-        fs::remove_dir_all(&tempdir_path).expect("Failed to remove tmp directory.");
+        //fs::remove_dir_all(&tempdir_path).expect("Failed to remove tmp directory.");
     }
 }
 
 fn get_video_metadata(filename: &str) -> VideoMetadata {
-    let regex_video_duration: Regex = Regex::new(r"DURATION\s+: [0-9:.]+").unwrap();
+    let regex_video_duration: Regex = Regex::new(r"Duration: [0-9:.]+").unwrap();
     let regex_fps: Regex = Regex::new(r"[0-9]+ fps").unwrap();
     let regex_frames: Regex = Regex::new(r"frame=\s+[0-9]+").unwrap();
 
@@ -263,7 +363,7 @@ fn get_video_metadata(filename: &str) -> VideoMetadata {
 /// speed it up and return path to the sped up video.
 ///
 /// If speed is lower than 0.5, panic.
-/// If speed is higher than 100, return `None`.
+/// If speed is higher or equal to 100, return `None`.
 fn speedup_video_part(
     input_path: &str,
     range: &SpeedupRange,
@@ -273,12 +373,12 @@ fn speedup_video_part(
     if range.speedup_rate < 0.5 {
         panic!("Fatal error: speed rate is lower than 0.5.");
     }
-    if range.speedup_rate > 100.0 {
+    if range.speedup_rate >= 100.0 {
         return None;
     }
 
-    let cut_video_filename = GUID::rand().to_string();
-    let speedup_video_filename = GUID::rand().to_string();
+    let cut_video_filename = format!("{}.mpeg", GUID::rand().to_string());
+    let speedup_video_filename = format!("{}.mpeg", GUID::rand().to_string());
     let cut_video_path = tempdir_path.join(Path::new(&cut_video_filename));
     let speedup_video_path = tempdir_path.join(Path::new(&speedup_video_filename));
 
@@ -334,16 +434,42 @@ fn speedup_video_part(
     Some(speedup_video_path)
 }
 
-fn concatenate_video_to_file(filenames_delimited_by_pipe: &str, output_path: PathBuf) {
+fn concatenate_video_to_file(filenames: Vec<&str>, tempdir_path: &PathBuf, output_path: PathBuf) {
+    // Create "files" file, which will contain list of filenames. We
+    // will then pass this file to ffmpeg. We cannot do this normally,
+    // since there is a limit on number of arguments ffmpeg can process
+    // the old way.
+    let filenames_register_path = tempdir_path.join("files.txt");
+    std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .open(filenames_register_path)
+        .expect("Failed to open file register.")
+        .write_all(
+            filenames
+                .iter()
+                .map(|x| format!("file '{}'", x))
+                .collect::<Vec<String>>()
+                .join("\n")
+                .as_bytes(),
+        )
+        .expect("Failed to write to file register.");
+
     Command::new("ffmpeg")
         .args(&[
+            "-f",
+            "concat",
+            "-safe",
+            "0",
             "-i",
-            &format!("concat:{}", filenames_delimited_by_pipe),
+            tempdir_path.join("files.txt").to_str().unwrap(),
+            "-c",
+            "copy",
             output_path.to_str().unwrap(),
         ])
         .stdin(Stdio::null())
         .stdout(Stdio::null())
-        .stderr(Stdio::null())
+        .stderr(Stdio::inherit())
         .spawn()
         .expect("Failed to run video concatenate process")
         .wait()
@@ -374,16 +500,16 @@ struct Cli {
     /// Video speed when loud sound is detected.
     ///
     /// This has to be at least 0.5.
-    /// If this is larger than 100, loud parts of
+    /// If this is larger than or equal to 100, loud parts of
     /// the video will be dropped completely.
-    #[structopt(long = "speed-loud", short = "l", default_value = "1")]
+    #[structopt(long = "speed-loud", short = "l", default_value = "1.5")]
     speed_loud: f32,
     /// Video speed when no loud sound was detected.
     ///
     /// This has to be at least 0.5.
-    /// If this is larger than 100, silent parts
+    /// If this is larger than or equal to 100, silent parts
     /// of the video will be dropped completely.
-    #[structopt(long = "speed-silent", short = "s", default_value = "2")]
+    #[structopt(long = "speed-silent", short = "s", default_value = "4")]
     speed_silent: f32,
     /// Threshold of silence. When sound gets under this threshold,
     /// current frame will be considered as silent.
@@ -399,6 +525,13 @@ struct Cli {
     /// get cut out/sped up as they are considered silent.
     #[structopt(long = "frame_margin", default_value = "2")]
     frame_margin: usize,
+    /// Do not print progress information.
+    #[structopt(long = "quiet", short = "q")]
+    quiet: bool,
+    /// Do not do anything, just print information about the video.
+    /// This includes estimated run time and time saved on the video.
+    #[structopt(long = "stats")]
+    show_stats: bool,
 }
 
 #[derive(Debug)]
