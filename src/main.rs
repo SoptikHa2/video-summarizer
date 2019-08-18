@@ -28,11 +28,19 @@ fn main() {
             args.output = PathBuf::from("-");
         } else {
             args.output = PathBuf::from(format!(
-                "{}.new.mpeg",
+                "{}.new.{}",
                 args.input
-                    .file_name()
+                    .file_stem()
                     .expect("Failed to get file stem from input file path.")
                     .to_str()
+                    .unwrap(),
+                args.input
+                    .file_name()
+                    .expect("Failed to get file name from input file path.")
+                    .to_str()
+                    .unwrap()
+                    .split(".")
+                    .last()
                     .unwrap()
             ));
         }
@@ -209,7 +217,7 @@ fn main() {
         );
         println!(
             "It will take about {} seconds to process {} segments.",
-            audio_segments_speedup.len() / 11,
+            audio_segments_speedup.len() / 2,
             audio_segments_speedup.len()
         );
         let time_total = video_metadata.duration_seconds;
@@ -275,7 +283,7 @@ fn main() {
             current_part += 1.0;
         }
 
-        // Create result mpeg file, and add concat everything
+        // Concatenate temp files
         concatenate_video_to_file(
             video_part_paths
                 .iter()
@@ -399,8 +407,10 @@ fn speedup_video_part(
         return None;
     }
 
-    let cut_video_filename = format!("{}.mpeg", GUID::rand().to_string());
-    let speedup_video_filename = format!("{}.mpeg", GUID::rand().to_string());
+    let extension = input_path.split(".").last().unwrap().trim();
+
+    let cut_video_filename = format!("{}.{}", GUID::rand().to_string(), extension);
+    let speedup_video_filename = format!("{}.{}", GUID::rand().to_string(), extension);
     let cut_video_path = tempdir_path.join(Path::new(&cut_video_filename));
     let speedup_video_path = tempdir_path.join(Path::new(&speedup_video_filename));
 
@@ -417,7 +427,7 @@ fn speedup_video_part(
             "-frames:v",
             &format!("{}", range.frame_to - range.frame_from),
             "-f",
-            "mpeg",
+            extension,
             cut_video_path.to_str().unwrap(),
         ])
         .stderr(Stdio::null())
@@ -442,7 +452,7 @@ fn speedup_video_part(
             "-map",
             "[a]",
             "-f",
-            "mpeg",
+            extension,
             speedup_video_path.to_str().unwrap(),
         ])
         .stderr(Stdio::null())
@@ -461,6 +471,8 @@ fn concatenate_video_to_file(filenames: Vec<&str>, tempdir_path: &PathBuf, outpu
     // will then pass this file to ffmpeg. We cannot do this normally,
     // since there is a limit on number of arguments ffmpeg can process
     // the old way.
+    let extension = filenames.first().unwrap().split(".").last().unwrap();
+
     let filenames_register_path = tempdir_path.join("files.txt");
     std::fs::OpenOptions::new()
         .create(true)
@@ -488,7 +500,7 @@ fn concatenate_video_to_file(filenames: Vec<&str>, tempdir_path: &PathBuf, outpu
             "-c",
             "copy",
             "-f",
-            "mpeg",
+            extension,
             output_path.to_str().unwrap(),
         ])
         .stdin(Stdio::null())
@@ -503,7 +515,7 @@ fn concatenate_video_to_file(filenames: Vec<&str>, tempdir_path: &PathBuf, outpu
 #[derive(StructOpt)]
 #[structopt(
     name = "Video Summarizer",
-    about = "Take a video, and change it's speed, depending on silent and loud parts. New video will be in .mpeg format for performance purposes.",
+    about = "Take a video, and change it's speed, depending on silent and loud parts.",
     rename_all = "kebab-case"
 )]
 struct Cli {
@@ -515,10 +527,7 @@ struct Cli {
     input: std::path::PathBuf,
     /// Output file
     ///
-    /// This is by default "old_filename.new.mpeg".
-    /// This will always be in .mpeg format, as it
-    /// would take about twice as much time to
-    /// return video in specified format.
+    /// This is by default "old_filename.new.extension".
     #[structopt(parse(from_os_str), short = "o", default_value = "")]
     output: std::path::PathBuf,
     /// Video speed when loud sound is detected.
