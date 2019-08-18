@@ -270,7 +270,7 @@ fn main() {
         if !args.quiet {
             eprintln!(
                 "Starting ffmpeg process. Come back in about {} minutes.",
-                (video_metadata.duration_seconds / 30.0) as usize
+                (video_metadata.duration_seconds / 40.0) as usize
             );
             eprintln!("If you need result fast and don't care about resolution, use --fast flag. It's much faster and generally pretty watchable.");
         }
@@ -543,6 +543,10 @@ fn speedup_using_complex_filter(input: &PathBuf, output: &PathBuf, complex_filte
             input.to_str().unwrap(),
             "-filter_complex",
             complex_filter,
+            "-f",
+            input.to_str().unwrap().split(".").last().unwrap(),
+            "-movflags",
+            "frag_keyframe+empty_moov",
             output.to_str().unwrap(),
         ])
         .stdin(Stdio::null())

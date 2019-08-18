@@ -440,7 +440,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "video-summarizer"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "guid-create 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "minimp3 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
