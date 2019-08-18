@@ -459,7 +459,7 @@ fn concatenate_video_to_file(filenames: Vec<&str>, tempdir_path: &PathBuf, outpu
     std::fs::OpenOptions::new()
         .create(true)
         .write(true)
-        .open(filenames_register_path)
+        .open(&filenames_register_path)
         .expect("Failed to open file register.")
         .write_all(
             filenames
@@ -470,6 +470,8 @@ fn concatenate_video_to_file(filenames: Vec<&str>, tempdir_path: &PathBuf, outpu
                 .as_bytes(),
         )
         .expect("Failed to write to file register.");
+
+    eprintln!("files.txt exists: {}", filenames_register_path.exists());
 
     Command::new("ffmpeg")
         .args(&[
@@ -525,7 +527,7 @@ struct Cli {
     /// This has to be at least 0.5.
     /// If this is larger than or equal to 100, silent parts
     /// of the video will be dropped completely.
-    #[structopt(long = "speed-silent", short = "s", default_value = "4")]
+    #[structopt(long = "speed-silent", short = "s", default_value = "5")]
     speed_silent: f32,
     /// Threshold of silence. When sound gets under this threshold,
     /// current frame will be considered as silent.
