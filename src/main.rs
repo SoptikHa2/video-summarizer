@@ -363,10 +363,8 @@ fn get_video_metadata(filename: &str) -> VideoMetadata {
         .expect("Failed to get total number of frames via ffprobe.");
     let total_frames_string = String::from_utf8(total_frames_command.stdout).unwrap();
     let total_frames_string = total_frames_string.split("=").last().unwrap().trim();
-    let total_frames: usize = total_frames_string.parse().expect(&format!(
-        "Failed to parse total video frames from {}",
-        total_frames_string
-    ));
+    let total_frames_result: Result<usize, std::num::ParseIntError> = total_frames_string.parse::<usize>();
+    let total_frames: usize = total_frames_result.unwrap_or(duration_seconds as usize * fps as usize);
 
     VideoMetadata {
         duration_seconds,
