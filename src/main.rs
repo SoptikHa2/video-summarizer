@@ -1,6 +1,5 @@
 use guid_create::GUID;
 use minimp3::{Decoder, Error};
-use regex::Regex;
 use structopt::StructOpt;
 
 use std::fs;
@@ -8,9 +7,9 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-// TODO: Remove file GUID creation, use something predictable instead
-// sometimes GUID filenames might clash, even if its' very unlikely to happen.
-// Even with approx. 45min long video, the change of clash would be just
+// TODO: Remove file GUID creation, use something predictable instead.
+// Sometimes GUID filenames might clash, even if it's very unlikely to happen.
+// Even with approx. 45min long video, the chance of clash would be just
 // 5 : 5,316,911,983,139,663,491,615,228,241,121,400
 
 fn main() {
@@ -236,7 +235,7 @@ fn main() {
         println!(
             "Estimated time saved is {} minutes ({}%).",
             (time_total - real_duration) / 60.0,
-            (time_total - real_duration) / time_total as f32
+            ((time_total - real_duration) / time_total as f32) * 100.0
         );
         return;
     }
@@ -300,57 +299,82 @@ fn main() {
 }
 
 fn get_video_metadata(filename: &str) -> VideoMetadata {
-    let regex_video_duration: Regex = Regex::new(r"Duration: [0-9:.]+").unwrap();
-    let regex_fps: Regex = Regex::new(r"[0-9]+ fps").unwrap();
-    let regex_frames: Regex = Regex::new(r"frame=\s+[0-9]+").unwrap();
-
-    let metadata_command = Command::new("ffmpeg")
-        .args(&["-i", filename, "-f", "null", "-"])
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped())
+    let duration_seconds_command = Command::new("ffprobe")
+        .args(&[
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=noprint_wrappers=1",
+            filename,
+        ])
         .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .stdout(Stdio::piped())
         .output()
-        .expect("Failed to spawn video metadata process");
-
-    let output_string = String::from_utf8(metadata_command.stderr).unwrap();
-
-    let duration_position = regex_video_duration
-        .find(&output_string)
-        .expect("Failed to extract video duration.");
-    let duration_in_string = duration_position.as_str().split(":").collect::<Vec<&str>>();
-    let duration_seconds: f32 = duration_in_string.last().unwrap().parse().expect(&format!(
+        .expect("Failed to get duration via ffprobe.");
+    // Expected format: duration=2838.919000
+    let duration_seconds_string = String::from_utf8(duration_seconds_command.stdout).unwrap();
+    let duration_seconds_string = duration_seconds_string.split("=").last().unwrap().trim();
+    let duration_seconds: f32 = duration_seconds_string.parse().expect(&format!(
         "Failed to parse video duration from {}",
-        duration_in_string.last().unwrap()
+        duration_seconds_string
     ));
 
-    let fps_position = regex_fps
-        .find(&output_string)
-        .expect("Failed to extract fps.");
-    let fps_in_string = fps_position
-        .as_str()
-        .split_whitespace()
-        .collect::<Vec<&str>>();
-    let fps: f32 = fps_in_string.first().unwrap().parse().expect(&format!(
-        "Failed to parse fps from {}",
-        fps_in_string.first().unwrap()
-    ));
+    let fps_command = Command::new("ffprobe")
+        .args(&[
+            "-select_streams",
+            "v",
+            "-show_entries",
+            "stream=r_frame_rate",
+            "-of",
+            "default=noprint_wrappers=1",
+            filename,
+        ])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .stdout(Stdio::piped())
+        .output()
+        .expect("Failed to get fps via ffprobe.");
+    // Expected format: r_frame_rate=30000/1001
+    let fps_string = String::from_utf8(fps_command.stdout).unwrap();
+    let fps_string = fps_string.split("=").last().unwrap();
+    let fps_string_split = (
+        fps_string.split("/").take(1).last().unwrap().trim(),
+        fps_string.split("/").last().unwrap().trim(),
+    );
+    let fps_numbers_split: (f32, f32) = (
+        fps_string_split
+            .0
+            .parse()
+            .expect(&format!("Failed to parse video fps(1) from {}", fps_string)),
+        fps_string_split
+            .1
+            .parse()
+            .expect(&format!("Failed to parse video fps(2) from {}", fps_string)),
+    );
+    let fps = fps_numbers_split.0 / fps_numbers_split.1;
 
-    let total_frames_position = regex_frames
-        .find_iter(&output_string)
-        .last()
-        .expect("Failed to extract total video frames.");
-    let total_frames_in_string = total_frames_position
-        .as_str()
-        .split_whitespace()
-        .collect::<Vec<&str>>();
-    let total_frames: usize = total_frames_in_string
-        .last()
-        .unwrap()
-        .parse()
-        .expect(&format!(
-            "Failed to parse total video frames from {}",
-            total_frames_in_string.last().unwrap()
-        ));
+    let total_frames_command = Command::new("ffprobe")
+        .args(&[
+            "-select_streams",
+            "v",
+            "-show_entries",
+            "stream=nb_frames",
+            "-of",
+            "default=noprint_wrappers=1",
+            filename,
+        ])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .stdout(Stdio::piped())
+        .output()
+        .expect("Failed to get total number of frames via ffprobe.");
+    let total_frames_string = String::from_utf8(total_frames_command.stdout).unwrap();
+    let total_frames_string = total_frames_string.split("=").last().unwrap().trim();
+    let total_frames: usize = total_frames_string.parse().expect(&format!(
+        "Failed to parse total video frames from {}",
+        total_frames_string
+    ));
 
     VideoMetadata {
         duration_seconds,
