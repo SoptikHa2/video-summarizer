@@ -46,7 +46,7 @@ video-summarizer -l 1.5 -s 100 path/to/video
 
 # Results
 
-Everything was tested with ffmpeg 4.2, and video summarizer 1.1.0. Settings: `-l 1.5 -s 100`.
+Everything was tested with ffmpeg 4.2, and video summarizer 1.1.1. Settings: `-l 1.5 -s 100`.
 
 | Name | Duration (s) | Silent time (%) | Saved time (s) |
 |---|---|---|---|
