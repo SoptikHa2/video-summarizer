@@ -7,9 +7,9 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
-// TODO: Remove file GUID creation, use something predictable instead.
+// TODO: Remove file GUID creation for fast option, use something predictable instead.
 // Sometimes GUID filenames might clash, even if it's very unlikely to happen.
-// Even with approx. 45min long video, the chance of clash would be just
+// Even with approx. 45min long video, the chance of clash would be just something like
 // 5 : 5,316,911,983,139,663,491,615,228,241,121,400
 
 fn main() {
@@ -25,7 +25,6 @@ fn main() {
         if args.input.to_str().expect("Failed to get input filename.") == "-" {
             eprintln!("Piping video in isn't supported yet. Sorry!");
             return;
-            args.output = PathBuf::from("-");
         } else {
             args.output = PathBuf::from(format!(
                 "{}.new.{}",
@@ -54,6 +53,14 @@ fn main() {
         if args.output.exists() {
             fs::remove_file(&args.output).expect("Failed to delete existing output file.");
         }
+    }
+    // If there is set both fast and audio option, inform user that they are incompatible.
+    if args.fast && args.audio {
+        eprintln!("Audio option and fast option cannot be used together. Please use only one.");
+        eprintln!(
+            "It's strongly recommended to use the --audio option. Using only audio is faster in every case."
+        );
+        return;
     }
 
     if !args.quiet {
@@ -217,7 +224,7 @@ fn main() {
             silent_percentage_of_video * 100.0
         );
         println!(
-            "It will take about {} seconds to process {} segments with flawless quality, or about {} seconds with watchable quality.",
+            "It will take about {} seconds to process {} segments with flawless quality, or about {} seconds with watchable quality. Processing only audio will be almost instantaneous.",
                 video_metadata.duration_seconds as usize * 2,
                 audio_segments_speedup.len(),
                 audio_segments_speedup.len() / 3,
@@ -263,15 +270,20 @@ fn main() {
 
     // Tell ffmpeg to do it (slower, best resolution, doesn't use temp files)
     if !args.fast {
-        let filter = generate_complex_speedup_filter(&video_segments_speedup, &video_metadata);
+        let filter =
+            generate_complex_speedup_filter(&video_segments_speedup, &video_metadata, args.audio);
         if !args.quiet {
-            eprintln!(
-                "Starting ffmpeg process. Come back in about {} minutes.",
-                (video_metadata.duration_seconds / 40.0) as usize
-            );
-            eprintln!("If you need result fast and don't care about resolution, use --fast flag. It's much faster and generally pretty watchable.");
+            // Displaying "come back in N minutes" doesn't make sense with the --audio option, since it's really fast.
+            if !args.audio {
+                eprintln!(
+                    "Starting ffmpeg process. Come back in about {} minutes.",
+                    (video_metadata.duration_seconds / 40.0) as usize
+                );
+                eprintln!("If you need result fast and don't care about resolution, use --fast flag. It's much faster and generally pretty watchable.");
+                eprintln!("If you don't need video, use the --audio flag. It will make the process almost instantaneous.")
+            }
         }
-        speedup_using_complex_filter(&args.input, &args.output, &filter);
+        speedup_using_complex_filter(&args.input, &args.output, &filter, args.audio);
     } else
     // Do the splitting, speed-uping, etc manually (fastest, worst result)
     {
@@ -300,7 +312,7 @@ fn main() {
         }
 
         // Concatenate temp files
-        concatenate_video_to_file(
+        concatenate_videos_to_file(
             video_part_paths
                 .iter()
                 .filter(|p| p.is_some())
@@ -314,6 +326,8 @@ fn main() {
     }
 }
 
+/// Scan video with ffprobe to determine video length, fps, and duration.
+/// This is used to sync audio and video and output estimate runtime.
 fn get_video_metadata(filename: &str) -> VideoMetadata {
     let duration_seconds_command = Command::new("ffprobe")
         .args(&[
@@ -487,7 +501,9 @@ fn speedup_video_part(
     Some(speedup_video_path)
 }
 
-fn concatenate_video_to_file(filenames: Vec<&str>, tempdir_path: &PathBuf, output_path: PathBuf) {
+/// Create file that will contain all video names in given directory.
+/// Afterwards, concatenate all those videos using ffmpeg to output path.
+fn concatenate_videos_to_file(filenames: Vec<&str>, tempdir_path: &PathBuf, output_path: PathBuf) {
     // Create "files" file, which will contain list of filenames. We
     // will then pass this file to ffmpeg. We cannot do this normally,
     // since there is a limit on number of arguments ffmpeg can process
@@ -531,11 +547,20 @@ fn concatenate_video_to_file(filenames: Vec<&str>, tempdir_path: &PathBuf, outpu
         .expect("Failed to concatenate video files.");
 }
 
-fn speedup_using_complex_filter(input: &PathBuf, output: &PathBuf, complex_filter: &str) {
-    Command::new("ffmpeg")
-        .args(&[
+fn speedup_using_complex_filter(
+    input: &PathBuf,
+    output: &PathBuf,
+    complex_filter: &str,
+    audio_only: bool,
+) {
+    let args: Vec<&str>;
+    if audio_only {
+        args = vec![
             "-i",
             input.to_str().unwrap(),
+            "-vn",
+            "-threads",
+            "8",
             "-filter_complex",
             complex_filter,
             "-f",
@@ -543,7 +568,29 @@ fn speedup_using_complex_filter(input: &PathBuf, output: &PathBuf, complex_filte
             "-movflags",
             "frag_keyframe+empty_moov",
             output.to_str().unwrap(),
-        ])
+        ];
+    } else {
+        args = vec![
+            "-i",
+            input.to_str().unwrap(),
+            "-preset",
+            "faster",
+            "-crf",
+            "27",
+            "-threads",
+            "8",
+            "-filter_complex",
+            complex_filter,
+            "-f",
+            input.to_str().unwrap().split(".").last().unwrap(),
+            "-movflags",
+            "frag_keyframe+empty_moov",
+            output.to_str().unwrap(),
+        ];
+    }
+
+    Command::new("ffmpeg")
+        .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::inherit())
         .stderr(Stdio::null())
@@ -553,7 +600,28 @@ fn speedup_using_complex_filter(input: &PathBuf, output: &PathBuf, complex_filte
         .expect("Failed to run speedup via complex filter.");
 }
 
-fn generate_complex_speedup_filter(ranges: &Vec<SpeedupRange>, metadata: &VideoMetadata) -> String {
+/// Generate ffmpeg complex filter that will speed up the video.
+///
+/// For example, to speed up video that is one second long, in such way
+/// that first segment `(0.00 - 0.25)` will have double speed,
+/// second segment `(0.25 - 0.75)` will have standart speed and
+/// thrid segment `(0.75 - 1.00)` will have double speed, the complex
+/// filter will look like this:
+///
+/// ```
+/// [0:v]trim=0:0.25,setpts=0.5*(PTS_STARTPTS)[v1];
+/// [0:a]atrim=0:0.25,asetpts=PTS-STARTPTS,atempo=2[a1];
+/// [0:v]trim=0.25:0.75,setpts=1*(PTS_STARTPTS)[v2];
+/// [0:a]atrim=0.25:0.75,asetpts=PTS-STARTPTS,atempo=1[a3];
+/// [0:v]trim=0.75:1,setpts=0.5*(PTS_STARTPTS)[v3];
+/// [0:a]atrim=0.75:1,asetpts=PTS-STARTPTS,atempo=2[a3];
+/// [v1][a1][v2][a2][v3][a3]concat=n=3:v=1:a=1
+/// ```
+fn generate_complex_speedup_filter(
+    ranges: &Vec<SpeedupRange>,
+    metadata: &VideoMetadata,
+    audio_only: bool,
+) -> String {
     let mut complex_filter = String::new();
     let mut idx: usize = 1;
     for range in ranges {
@@ -563,10 +631,12 @@ fn generate_complex_speedup_filter(ranges: &Vec<SpeedupRange>, metadata: &VideoM
         let seconds_from: f32 = range.frame_from as f32 / metadata.fps;
         let seconds_to: f32 = range.frame_to as f32 / metadata.fps;
         let inverted_speedup = 1.0 / range.speedup_rate;
-        complex_filter.push_str(&format!(
-            "[0:v]trim={}:{},setpts={}*(PTS-STARTPTS)[v{}];",
-            seconds_from, seconds_to, inverted_speedup, idx
-        ));
+        if !audio_only {
+            complex_filter.push_str(&format!(
+                "[0:v]trim={}:{},setpts={}*(PTS-STARTPTS)[v{}];",
+                seconds_from, seconds_to, inverted_speedup, idx
+            ));
+        }
         complex_filter.push_str(&format!(
             "[0:a]atrim={}:{},asetpts=PTS-STARTPTS,atempo={}[a{}];",
             seconds_from, seconds_to, range.speedup_rate, idx
@@ -574,9 +644,17 @@ fn generate_complex_speedup_filter(ranges: &Vec<SpeedupRange>, metadata: &VideoM
         idx += 1;
     }
     for i in 1..idx {
-        complex_filter.push_str(&format!("[v{}][a{}]", i, i));
+        if audio_only {
+            complex_filter.push_str(&format!("[a{}]", i));
+        } else {
+            complex_filter.push_str(&format!("[v{}][a{}]", i, i));
+        }
     }
-    complex_filter.push_str(&format!("concat=n={}:v=1:a=1", idx - 1));
+    if audio_only {
+        complex_filter.push_str(&format!("concat=n={}:a=1:v=0", idx - 1));
+    } else {
+        complex_filter.push_str(&format!("concat=n={}:v=1:a=1", idx - 1));
+    }
 
     complex_filter
 }
@@ -636,8 +714,16 @@ struct Cli {
     show_stats: bool,
     /// Encode resulting video in MPEG. This will probably make resolution
     /// worse, but will speed up the whole process a LOT.
+    ///
+    /// This option is obsolete. It doesn't support piping out
+    /// (immediatelly, you'll have to wait for the processing to end first)
+    /// and it doesn't support the --audio option.
     #[structopt(long = "fast")]
     fast: bool,
+    /// Keep only audio, and drop all video frames. This will
+    /// make processing almost instantaneous.
+    #[structopt(long = "audio")]
+    audio: bool,
 }
 
 struct SpeedupRange {

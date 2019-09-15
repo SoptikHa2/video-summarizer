@@ -55,4 +55,5 @@ Everything was tested with ffmpeg 4.2, and video summarizer 1.1.1. Settings: `-l
 | [Black Mirror: White Christmas ](https://www.imdb.com/title/tt3973198/) | 4326 | 11.93% | 1786 (41.29%) |
 | [Puella Magi Madoka Magica Ep 10](https://www.imdb.com/title/tt1773185/) | 1449 | 7.22% | 553 (38.15%) |
 
-I would like to thank @slhck at SuperUser, who [helped me](https://superuser.com/questions/1472587/precise-cutting-video-into-lots-of-smaller-videos-using-ffmpeg/1473669#1473669) a lot when designing ffmpeg edit process.
+# Known issues
+- New (not-`fast`) option will fail if the video is too long. It turns out you cannot pass multi-MB string as CLI parameter.
