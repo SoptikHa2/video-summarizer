@@ -14,7 +14,13 @@ for lecture-video in *.mp4; do
 done
 ```
 
-Cut silent parts out of a youtube video.
+I don't care about quality, I need it NOW.
+
+```sh
+video-summarizer -l 2.5 -s 7 --fast video.mp4 -o new-video.mp4
+```
+
+Cut silent parts out of a video.
 
 ```sh
 video-summarizer -s 100 video.mp4 -o video-cut.mp4
