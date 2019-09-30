@@ -1,10 +1,17 @@
 [package]
 name = "video-summarizer"
+description = "Application that uses FFMPEG to summarize video. Infers which parts of the video are silent or loud and speeds them up at different rates. Great for long lecture videos."
 version = "1.2.1"
 authors = ["Petr Šťastný <petr.stastny01@gmail.com>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+license-file = "LICENSE"
+homepage = "https://github.com/SoptikHa2/video-summarizer"
+documentation = "https://github.com/SoptikHa2/video-summarizer"
+repository = "https://github.com/SoptikHa2/video-summarizer"
+readme = "README.md"
+keywords = ["ffmpeg", "video", "summarize", "shorten"]
+categories = ["command-line-utilities", "multimedia", "multimedia::audio", "multimedia::video"]
+maintenance = { status = "actively-developed" }
 
 [dependencies]
 minimp3 = "0.3.3"
