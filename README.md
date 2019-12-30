@@ -1,5 +1,7 @@
 This application lets user speed up video at varying rates, based on current loudness. For example, I can speed up loud parts of a lecture 1.5x, and the silent parts 5x. Application does this by taking audio and search where the audio has [suspiciously constant level](https://imgur.com/Y2rzUkK) for big amount of time. Afterwards, I just split it, speed it up, and concatenate it via ffmpeg. This was done primarily to learn more about Rust, but the result are actually much better than I thought. I think this would actually be viable to use in case of internet lectures.
 
+New version of this package actually uses VLC instead of FFMPEG to speed up the vidoe. This doesn't offer saving the video into file (which is done via ffmpeg), but is much, much faster.
+
 See the Results section for analysis I did few versions ago.
 
 # Usage
