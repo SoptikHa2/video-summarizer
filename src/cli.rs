@@ -15,9 +15,10 @@ pub struct Cli {
     pub input: std::path::PathBuf,
     /// Output file (deprecated)
     ///
-    /// This is by default "old_filename.new.extension".
     /// Please note that this option will use fallback FFMPEG solution,
     /// which is really slow.
+    /// 
+    /// Don't use this option to allow new VLC method.
     #[structopt(parse(from_os_str), short = "o", default_value = "")]
     pub output: std::path::PathBuf,
     /// Video speed when loud sound is detected.
