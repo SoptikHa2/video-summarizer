@@ -1,10 +1,25 @@
-**DISCLAIMER**: This is work in progress. It is not yet to be used anywhere where it's important that it doesn't fail. If it doesn't work, file a github issue. Things generally work, but workarounds often include "not messing too much with piping video in/out" and "don't give it 2 hour long videos".
-
 This application lets user speed up video at varying rates, based on current loudness. For example, I can speed up loud parts of a lecture 1.5x, and the silent parts 5x. Application does this by taking audio and search where the audio has [suspiciously constant level](https://imgur.com/Y2rzUkK) for big amount of time. Afterwards, I just split it, speed it up, and concatenate it via ffmpeg. This was done primarily to learn more about Rust, but the result are actually much better than I thought. I think this would actually be viable to use in case of internet lectures.
 
 See the Results section for analysis I did few versions ago.
 
 # Usage
+
+Play a video in vlc. Seed up loud parts 1.5x and silent parts 5x.
+```sh
+video-summarizer -l 1.5 -s 5 "video.mp4"
+```
+
+Play a video in vlc. Don't speed up loud parts and cut out silent parts. (If speed is >= 100, the loud/silent parts are cut of the video.)
+```sh
+video-summarizer -s 100 "video.wmv"
+```
+
+Play a video in vlc. Slow down silent parts 2x, for whatever reason.
+```sh
+video-summarizer -s 0.5 "video.webm"
+```
+
+You can specify video output as a file, but in that case, processing takes quite a long time. We fallback to old method which is really slow. We don't recommend this option, play it in VLC whenever you can.
 
 Convert multiple lecture files. Speed up loud parts 1.5x and silent parts 5x.
 
@@ -26,12 +41,10 @@ Cut silent parts out of a video.
 video-summarizer -s 100 video.mp4 -o video-cut.mp4
 ```
 
-Download audio of a very long talk from youtube, speed up loud parts 2x and silent parts 4x, and pipe that into VLC.
+Get only audio from a video. This option is really fast.
 
 ```sh
-youtube-dl -f 'bestaudio[ext=m4a]' 'https://www.youtube.com/watch?v=KSWqx8goqSY' -o - |
-video-summarizer --audio -l 2 -s 4 - -o - |
-vlc -
+video-summarizer -l 2 -s 4 video.mp4 --audio -o audio-only.mp3
 ```
 
 # Install
@@ -39,6 +52,8 @@ vlc -
 Make sure you have required dependencies and either download binary from releases, or build it yourself. I suggest you to download binary if you want to just try it, but the best option is building directly from Rust repository. Everything, including updates, is taken care of.
 
 Install [ffmpeg](https://ffmpeg.org/download.html) [\[apt\]](https://packages.ubuntu.com/search?keywords=ffmpeg&searchon=all&suite=all&section=all) [\[pacman\]](https://www.archlinux.org/packages/extra/x86\_64/ffmpeg/) in order to use this program.
+
+We strongly recommend you to install [vlc](https://www.videolan.org/vlc/)  [\[apt\]](https://packages.ubuntu.com/search?suite=all&section=all&arch=any&keywords=vlc&searchon=all) [\[pacman\]](https://www.archlinux.org/packages/extra/x86_64/vlc/)
 
 If you want to build it yourself, you'll need to install [rust](https://www.rust-lang.org/) [\[apt\]](https://packages.ubuntu.com/search?keywords=rust&searchon=all&suite=all&section=all) [\[pacman\]](https://www.archlinux.org/packages/extra/x86\_64/rust/) and [git](https://git-scm.com/downloads) [\[apt\]](https://packages.ubuntu.com/search?keywords=git&searchon=all&suite=all&section=all) [\[pacman\]](https://www.archlinux.org/packages/extra/x86_64/git/) as well.
 
