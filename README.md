@@ -100,7 +100,7 @@ video-summarizer -l 1.5 -s 100 path/to/video
 ## Runtime dependencies
 - [ffmpeg](https://wiki.archlinux.org/index.php/FFmpeg/) (tested on 4.2) [\[apt\]](https://packages.ubuntu.com/search?keywords=ffmpeg&searchon=all&suite=all&section=all) [\[pacman\]](https://www.archlinux.org/packages/extra/x86\_64/ffmpeg/)
 
-- [vlc](https://www.videolan.org/vlc/)  [\[apt\]](https://packages.ubuntu.com/search?suite=all&section=all&arch=any&keywords=vlc&searchon=all) [\[pacman\]](https://www.archlinux.org/packages/extra/x86_64/vlc/) (optional, but strongly recommended)
+- [vlc](https://www.videolan.org/vlc/) (tested on 3.0.8) [\[apt\]](https://packages.ubuntu.com/search?suite=all&section=all&arch=any&keywords=vlc&searchon=all) [\[pacman\]](https://www.archlinux.org/packages/extra/x86_64/vlc/) (optional, but strongly recommended)
 
 # Results
 
