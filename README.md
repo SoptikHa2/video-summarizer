@@ -110,5 +110,4 @@ Everything was tested with ffmpeg 4.2, and video summarizer 1.1.1. Settings: `-l
 | [Puella Magi Madoka Magica Ep 10](https://www.imdb.com/title/tt1773185/) | 1449 | 7.22% | 553 (38.15%) |
 
 # Known issues
-- New (not-`fast`) option will fail if the video is too long. It turns out you cannot pass multi-MB string as CLI parameter.
 - The youtube piping example fails for some reason.

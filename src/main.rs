@@ -272,6 +272,15 @@ fn main() {
     if !args.fast {
         let filter =
             generate_complex_speedup_filter(&video_segments_speedup, &video_metadata, args.audio);
+        // Save filter to file
+        // Create temporary directory where we will store temporary complex filter file.
+        let tempdir_path = std::env::temp_dir().join(GUID::rand().to_string());
+        fs::DirBuilder::new()
+            .create(&tempdir_path)
+            .expect("Failed to create tmp directory.");
+        let filter_filename = tempdir_path.join("complex_filter.txt");
+        fs::write(filter_filename.to_str().unwrap(), filter).unwrap();
+            
         if !args.quiet {
             // Displaying "come back in N minutes" doesn't make sense with the --audio option, since it's really fast.
             if !args.audio {
@@ -283,7 +292,8 @@ fn main() {
                 eprintln!("If you don't need video, use the --audio flag. It will make the process almost instantaneous.")
             }
         }
-        speedup_using_complex_filter(&args.input, &args.output, &filter, args.audio);
+        speedup_using_complex_filter(&args.input, &args.output, &filter_filename.to_str().unwrap(), args.audio);
+        fs::remove_dir_all(&tempdir_path).expect("Failed to remove tmp directory.");
     } else
     // Do the splitting, speed-uping, etc manually (fastest, worst result)
     {
@@ -550,7 +560,7 @@ fn concatenate_videos_to_file(filenames: Vec<&str>, tempdir_path: &PathBuf, outp
 fn speedup_using_complex_filter(
     input: &PathBuf,
     output: &PathBuf,
-    complex_filter: &str,
+    complex_filter_filename: &str,
     audio_only: bool,
 ) {
     let args: Vec<&str>;
@@ -561,8 +571,8 @@ fn speedup_using_complex_filter(
             "-vn",
             "-threads",
             "8",
-            "-filter_complex",
-            complex_filter,
+            "-filter_complex_script",
+            complex_filter_filename,
             "-f",
             input.to_str().unwrap().split(".").last().unwrap(),
             "-movflags",
@@ -579,8 +589,8 @@ fn speedup_using_complex_filter(
             "27",
             "-threads",
             "8",
-            "-filter_complex",
-            complex_filter,
+            "-filter_complex_script",
+            complex_filter_filename,
             "-f",
             input.to_str().unwrap().split(".").last().unwrap(),
             "-movflags",
