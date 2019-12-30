@@ -17,7 +17,7 @@ pub struct Cli {
     ///
     /// Please note that this option will use fallback FFMPEG solution,
     /// which is really slow.
-    /// 
+    ///
     /// Don't use this option to allow new VLC method.
     #[structopt(parse(from_os_str), short = "o", default_value = "")]
     pub output: std::path::PathBuf,
@@ -49,11 +49,11 @@ pub struct Cli {
     /// get cut out/sped up as they are considered silent.
     #[structopt(long = "frame-margin", default_value = "2")]
     pub frame_margin: usize,
-    /// Do not print progress information.
+    /// Do not print progress information or deprecated/useless options warning.
     #[structopt(long = "quiet", short = "q")]
     pub quiet: bool,
     /// Do not do anything, just print information about the video. (deprecated)
-    /// 
+    ///
     /// This includes estimated run time and time saved on the video.
     /// This option is deprecated. It will be ignored unless --output (-o) option is specified.
     #[structopt(long = "stats")]
@@ -69,7 +69,7 @@ pub struct Cli {
     pub fast: bool,
     /// Keep only audio, and drop all video frames. This will
     /// make processing almost instantaneous. (deprecated)
-    /// 
+    ///
     /// This option is deprecated. It will be ignored unless --output (-o) option is specified.
     #[structopt(long = "audio")]
     pub audio: bool,

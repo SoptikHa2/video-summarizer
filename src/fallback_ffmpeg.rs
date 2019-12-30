@@ -1,7 +1,7 @@
 /// This is fallback solution for video summarizer.
-/// 
+///
 /// It uses ffmpeg, no concurrency, and man, the spaghetti.
-/// 
+///
 /// This section is no longer mantained. It might break or be removed
 /// at any time and won't be fixed.
 pub mod fallback_ffmpeg {
@@ -20,11 +20,16 @@ pub mod fallback_ffmpeg {
     use crate::cli::Cli;
 
     pub fn solve(mut args: Cli) {
-        if args.output.to_str().expect("Failed to get output filename").len() != 0 {
+        if args
+            .output
+            .to_str()
+            .expect("Failed to get output filename")
+            .len()
+            != 0
+        {
             // User specified output filename.
             // Fallback to ffmpeg.
         }
-
 
         // Set output filename if not set by user
         if args
@@ -230,7 +235,8 @@ pub mod fallback_ffmpeg {
                 .filter(|f| **f)
                 .collect::<Vec<&bool>>()
                 .len();
-            let silent_percentage_of_video = video_silent_frames as f32 / silent_frames.len() as f32;
+            let silent_percentage_of_video =
+                video_silent_frames as f32 / silent_frames.len() as f32;
             println!(
                 "{}% of video is silent.",
                 silent_percentage_of_video * 100.0
@@ -282,8 +288,11 @@ pub mod fallback_ffmpeg {
 
         // Tell ffmpeg to do it (slower, best resolution, doesn't use temp files)
         if !args.fast {
-            let filter =
-                generate_complex_speedup_filter(&video_segments_speedup, &video_metadata, args.audio);
+            let filter = generate_complex_speedup_filter(
+                &video_segments_speedup,
+                &video_metadata,
+                args.audio,
+            );
             // Save filter to file
             // Create temporary directory where we will store temporary complex filter file.
             let tempdir_path = std::env::temp_dir().join(GUID::rand().to_string());
@@ -292,7 +301,7 @@ pub mod fallback_ffmpeg {
                 .expect("Failed to create tmp directory.");
             let filter_filename = tempdir_path.join("complex_filter.txt");
             fs::write(filter_filename.to_str().unwrap(), filter).unwrap();
-                
+
             if !args.quiet {
                 // Displaying "come back in N minutes" doesn't make sense with the --audio option, since it's really fast.
                 if !args.audio {
@@ -304,7 +313,12 @@ pub mod fallback_ffmpeg {
                     eprintln!("If you don't need video, use the --audio flag. It will make the process almost instantaneous.")
                 }
             }
-            speedup_using_complex_filter(&args.input, &args.output, &filter_filename.to_str().unwrap(), args.audio);
+            speedup_using_complex_filter(
+                &args.input,
+                &args.output,
+                &filter_filename.to_str().unwrap(),
+                args.audio,
+            );
             fs::remove_dir_all(&tempdir_path).expect("Failed to remove tmp directory.");
         } else
         // Do the splitting, speed-uping, etc manually (fastest, worst result)
@@ -525,7 +539,11 @@ pub mod fallback_ffmpeg {
 
     /// Create file that will contain all video names in given directory.
     /// Afterwards, concatenate all those videos using ffmpeg to output path.
-    fn concatenate_videos_to_file(filenames: Vec<&str>, tempdir_path: &PathBuf, output_path: PathBuf) {
+    fn concatenate_videos_to_file(
+        filenames: Vec<&str>,
+        tempdir_path: &PathBuf,
+        output_path: PathBuf,
+    ) {
         // Create "files" file, which will contain list of filenames. We
         // will then pass this file to ffmpeg. We cannot do this normally,
         // since there is a limit on number of arguments ffmpeg can process
