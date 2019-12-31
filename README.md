@@ -102,6 +102,8 @@ video-summarizer -l 1.5 -s 100 path/to/video
 
 - [vlc](https://www.videolan.org/vlc/) (tested on 3.0.8) [\[apt\]](https://packages.ubuntu.com/search?suite=all&section=all&arch=any&keywords=vlc&searchon=all) [\[pacman\]](https://www.archlinux.org/packages/extra/x86_64/vlc/) (optional, but strongly recommended)
 
+- `mkfifo` (create named pipe, present on most unix systems) - required if user pipes video into stdin of this program
+
 # Results
 
 Everything was tested with ffmpeg 4.2, and video summarizer 1.1.1. Settings: `-l 1.5 -s 100`.
