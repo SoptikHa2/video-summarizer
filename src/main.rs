@@ -1,8 +1,16 @@
 mod cli;
 use cli::Cli;
 mod fallback_ffmpeg;
+mod video_processing;
+use video_processing::{Video, VideoSource};
 
 use structopt::StructOpt;
+
+use std::fs::{File};
+use std::io::prelude::*;
+use std::io::Stdin;
+use std::path::PathBuf;
+use std::fmt::{self, Display};
 
 // How does this work?
 //
@@ -65,6 +73,60 @@ fn main() {
             eprintln!("Warning: using deprecated --stats flag that has no effect in this context.");
         }
     }
+    
+    let video_source = match load_video(args.input) {
+        Ok(video_source) => video_source,
+        Err(e) => {
+            panic!(format!("Error reading video: {}", e));
+        }
+    };
 
-    unimplemented!("New solution TODO");
+    let mut video = Video::new(video_source);
+    // Analyze video audio to determine loud and silent parts of the video
+    match video.analyze_sound() {
+        Ok(_) => {},
+        Err(processing_error) => {
+            panic!(format!("Failed to process video audio. Please file a bug report at https://github.com/soptikha2/video-summarizer . {}", processing_error));
+        }
+    }
+}
+
+/// Take video source (either filename or "-" for stdin) and create
+/// video source. It will contain either the filename or the 
+fn load_video(video_path: PathBuf) -> Result<VideoSource, VideoLoadingError> {
+    match video_path.to_str() {
+        Some(x) if x == "-" => {
+            // Load from stdin
+            let mut buffer: Vec<u8> = Vec::new();
+            std::io::stdin().read_to_end(&mut buffer)?;
+            Ok(VideoSource::StdinStream(buffer))
+        }
+        Some(x) => {
+            // It's a file
+            Ok(VideoSource::FilePath(String::from(x)))
+        }
+        None => {
+            Err(VideoLoadingError::PathOptionNotReadable)
+        }
+    }
+}
+
+#[derive(Debug)]
+enum VideoLoadingError {
+    StdinReadFailure(std::io::Error),
+    PathOptionNotReadable,
+}
+impl From<std::io::Error> for VideoLoadingError {
+    fn from(err: std::io::Error) -> Self {
+        VideoLoadingError::StdinReadFailure(err)
+    }
+}
+impl Display for VideoLoadingError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let reason: String = match self {
+            VideoLoadingError::StdinReadFailure(e) => format!("An error occured while trying to read bytes from stdin: {}", e),
+            PathOptionNotReadable => String::from("Failed to read input option. Make sure filename is valid UTF-8.")
+        };
+        write!(f, "An error occured while trying to load video: {}", reason)
+    }
 }
