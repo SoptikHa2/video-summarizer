@@ -84,6 +84,9 @@ impl Video {
     /// Use ffmpeg to extract mp3 stream from video.
     /// This only uses one thread, but achieves roughly 60x
     /// speed of playback on my intel core i5 g8.
+    /// 
+    /// TODO: Return as stream, so we can
+    /// process the audio while ffmpeg is working.
     fn extract_mp3_stream_from_video(&self) -> Result<Vec<u8>, VideoProcessingError> {
         let parameter_source = match &self.source {
             VideoSource::FilePath(s) => s,
