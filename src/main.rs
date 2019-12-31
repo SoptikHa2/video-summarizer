@@ -89,6 +89,10 @@ fn main() {
             panic!(format!("Failed to process video audio. Please file a bug report at >>https://github.com/soptikha2/video-summarizer<<. {}", processing_error));
         }
     }
+
+    // TODO: Handle errors
+    let vlc_controller = VlcController::new(video, args.speed_loud, args.speed_silent).unwrap();
+    vlc_controller.start().unwrap();
 }
 
 /// Take video source (either filename or "-" for stdin) and create
