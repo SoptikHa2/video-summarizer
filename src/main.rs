@@ -6,9 +6,7 @@ use video_processing::{Video, VideoSource};
 
 use structopt::StructOpt;
 
-use std::fs::{File};
 use std::io::prelude::*;
-use std::io::Stdin;
 use std::path::PathBuf;
 use std::fmt::{self, Display};
 
@@ -43,7 +41,7 @@ use std::fmt::{self, Display};
 // the first option as a fallback.
 
 fn main() {
-    let mut args: Cli = Cli::from_args();
+    let args: Cli = Cli::from_args();
 
     if args
         .output
