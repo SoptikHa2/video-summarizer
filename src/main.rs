@@ -84,7 +84,7 @@ fn main() {
     match video.analyze_sound() {
         Ok(_) => {},
         Err(processing_error) => {
-            panic!(format!("Failed to process video audio. Please file a bug report at https://github.com/soptikha2/video-summarizer . {}", processing_error));
+            panic!(format!("Failed to process video audio. Please file a bug report at >>https://github.com/soptikha2/video-summarizer<<. {}", processing_error));
         }
     }
 }

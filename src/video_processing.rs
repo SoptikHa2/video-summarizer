@@ -42,10 +42,11 @@ impl Video {
             VideoSource::FilePath(_) => Stdio::null(),
             VideoSource::StdinStream(_) => Stdio::piped(),
         };
-        let duration_command = Command::new("ffprobe")
+        let mut duration_command = Command::new("ffprobe")
             .arg("-show_entries")
             .arg("format=duration")
-            .arg("-of default=noprint_wrappers=1:nokey=1")
+            .arg("-of")
+            .arg("default=noprint_wrappers=1:nokey=1")
             .arg(parameter_source)
             .stdout(Stdio::piped())
             .stdin(parameter_stdin)
@@ -60,11 +61,12 @@ impl Video {
             },
             _ => {}
         }
+        // Wait for duration command to end
         let mut output = duration_command.stdout.unwrap();
         let mut output_buffer: Vec<u8> = Vec::new();
         output.read_to_end(&mut output_buffer)?;
         let output_as_string = String::from_utf8(output_buffer)?;
-        self.length_seconds = Some(output_as_string.parse()?);
+        self.length_seconds = Some(output_as_string.trim().parse()?);
         Ok(())
     }
 }
