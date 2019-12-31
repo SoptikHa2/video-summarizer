@@ -17,4 +17,3 @@ maintenance = { status = "actively-developed" }
 minimp3 = "0.3.3"
 structopt = "0.2.18"
 guid-create = "0.1.1"
-puremp3 = "0.1.0"

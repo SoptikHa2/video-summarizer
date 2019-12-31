@@ -72,7 +72,7 @@ fn main() {
         }
     }
     
-    let video_source = match load_video(args.input) {
+    let video_source = match load_video(&args.input) {
         Ok(video_source) => video_source,
         Err(e) => {
             panic!(format!("Error reading video: {}", e));
@@ -81,7 +81,7 @@ fn main() {
 
     let mut video = Video::new(video_source);
     // Analyze video audio to determine loud and silent parts of the video
-    match video.analyze_sound() {
+    match video.analyze_sound(&args) {
         Ok(_) => {},
         Err(processing_error) => {
             panic!(format!("Failed to process video audio. Please file a bug report at >>https://github.com/soptikha2/video-summarizer<<. {}", processing_error));
@@ -91,7 +91,7 @@ fn main() {
 
 /// Take video source (either filename or "-" for stdin) and create
 /// video source. It will contain either the filename or the 
-fn load_video(video_path: PathBuf) -> Result<VideoSource, VideoLoadingError> {
+fn load_video(video_path: &PathBuf) -> Result<VideoSource, VideoLoadingError> {
     match video_path.to_str() {
         Some(x) if x == "-" => {
             // Load from stdin
