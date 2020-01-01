@@ -17,3 +17,5 @@ maintenance = { status = "actively-developed" }
 minimp3 = "0.3.3"
 structopt = "0.2.18"
 guid-create = "0.1.1"
+telnet = "0.1.4"
+rand = "0.7.2"
