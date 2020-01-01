@@ -1,7 +1,7 @@
 [package]
 name = "video-summarizer"
 description = "Application that uses FFMPEG to summarize video. Infers which parts of the video are silent or loud and speeds them up at different rates. Great for long lecture videos."
-version = "1.2.2"
+version = "1.2.3"
 authors = ["Petr Šťastný <petr.stastny01@gmail.com>"]
 edition = "2018"
 license-file = "LICENSE"

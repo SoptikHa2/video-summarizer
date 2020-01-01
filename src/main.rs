@@ -131,13 +131,15 @@ fn main() {
         for _ in 0..args.frame_margin {
             let mut frames_to_be_loud: Vec<bool> = Vec::with_capacity(silent_frames.len());
             frames_to_be_loud.push(false);
-            for i in 1..silent_frames.len() - 1 {
-                if silent_frames[i] == true
-                    && (silent_frames[i - 1] == false || silent_frames[i + 1] == false)
-                {
-                    frames_to_be_loud.push(true);
-                } else {
-                    frames_to_be_loud.push(false);
+            if silent_frames.len() > 0 {
+                for i in 1..silent_frames.len() - 1 {
+                    if silent_frames[i] == true
+                        && (silent_frames[i - 1] == false || silent_frames[i + 1] == false)
+                    {
+                        frames_to_be_loud.push(true);
+                    } else {
+                        frames_to_be_loud.push(false);
+                    }
                 }
             }
             for i in 0..frames_to_be_loud.len() {
