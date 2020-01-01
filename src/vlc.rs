@@ -110,14 +110,13 @@ impl VlcController {
                 // Ask vlc if the video is playing right now.
                 self.send_to_vlc_via_telnet("is_playing");
                 thread::sleep(Duration::from_millis(200));
-                let is_playing = VlcController::parse_vlc_response_to_usize(self.receive_response_form_telnet()).unwrap();
+                let is_playing = VlcController::parse_vlc_response_to_usize(self.receive_response_from_telnet()).unwrap();
                 if is_playing == 0 {
                     // Wait until user starts playing the video
                     continue;
                 }
                 // Ask vlc for time
-                self.send_to_vlc_via_telnet("get_time");
-                let time_seconds = VlcController::parse_vlc_response_to_usize(self.receive_response_form_telnet()).unwrap();
+                let time_seconds = self.get_current_time().unwrap();
                 let speedup = self.get_speedup_for_current_second(time_seconds);
                 // Set speedup rate
                 self.send_to_vlc_via_telnet(&format!("rate {}", speedup));
@@ -139,7 +138,7 @@ impl VlcController {
         self.telnet_connection.as_mut().unwrap().write(format!("{}\n", password).as_bytes()).unwrap();
         // Ignore welcoming messages
         for _ in 0..2 {
-            eprintln!("Ignoring: {}", self.receive_response_form_telnet());
+            eprintln!("Ignoring: {}", self.receive_response_from_telnet());
         }
     }
 
@@ -147,15 +146,39 @@ impl VlcController {
         self.telnet_connection.as_mut().unwrap().write(format!("{}\n", command).as_bytes()).unwrap();
     }
 
-    fn receive_response_form_telnet(&mut self) -> String {
+    /// Blocking read from telnet, unspecified amount of bytes.
+    /// This might not read to end, see `receive_response_from_telnet_until_found`
+    fn receive_response_from_telnet(&mut self) -> String {
         let event = self.telnet_connection.as_mut().unwrap().read().unwrap();
 
         match event {
             TelnetEvent::Data(buffer) => {
                 return String::from_utf8((*buffer).to_vec()).unwrap();
             }
-            _ => { return self.receive_response_form_telnet(); }
+            _ => { return self.receive_response_from_telnet(); }
         }
+    }
+
+    /// Keep blocking-reading from telnet until everything specified in required_contents was read.
+    fn receive_response_from_telnet_until_found(&mut self, required_contents: Vec<&str>) -> String {
+        let mut seen: Vec<bool> = required_contents.iter().map(|_| false).collect();
+
+        let mut response = String::new();
+        while seen.iter().any(|s| *s == false) {
+            eprintln!("Still waiting for {:?}", required_contents.iter().zip(&seen).filter(|(_, found)| !*found).map(|(contents, _)| contents));
+
+            let newest_response = self.receive_response_from_telnet();
+            for i in 0..required_contents.len() {
+                if seen[i] {
+                    continue;
+                }
+                if newest_response.contains(required_contents[i]) {
+                    seen[i] = true;
+                }
+            }
+            response.push_str(&newest_response);
+        }
+        response
     }
 
     /// Take vlc response line which looks like this:
@@ -166,25 +189,43 @@ impl VlcController {
         line.split_whitespace().filter_map(|s| s.parse::<usize>().ok()).next()
     }
 
-    /// Take VLC response to "stats" command.
-    /// It includes bunch of stuff, but we're interested in line that
-    /// looks like this:
+    /// Execute multiple requests to get precise current time.
+    /// First of all, we send "stats" and get numbers from lines:
+    /// ```
     /// | frames displayed :     2704
-    /// We need to parse the number there.
-    fn get_current_frame_from_vlc_stats_response(response: String) -> Option<usize> {
+    /// | frames lost :          0
+    /// ```
+    /// 
+    /// Then, we look at video framerate using "info" command:
+    /// ```
+    /// | Frame rate: 23.976024
+    /// ```
+    /// 
+    /// Using this, we can calculate precise current time.
+    /// 
+    /// If any of this is missing, return none.
+    fn get_current_time(&mut self) -> Option<f32> {
+        // Send stats and info commands
+        self.send_to_vlc_via_telnet("stats");
+        self.send_to_vlc_via_telnet("info");
+        let mut response: String = self.receive_response_from_telnet_until_found(vec!["frames displayed", "frames lost", "Frame rate"]);
+        eprintln!("Time output:\n{}\n--END_TIME_OUTPUT--", response);
         let frames_displayed_line: &str = response.lines().filter(|line| line.contains("frames displayed")).next()?;
-        frames_displayed_line.replace(" ", "").split(":").last()?.parse::<usize>().ok()
+        let frames_displayed = frames_displayed_line.replace(" ", "").split(":").last()?.parse::<usize>().ok()?;
+        let frames_lost_line: &str = response.lines().filter(|line| line.contains("frames lost")).next()?;
+        let frames_lost = frames_lost_line.replace(" ", "").split(":").last()?.parse::<usize>().ok()?;
+        let frame_rate_line: &str = response.lines().filter(|line| line.contains("Frame rate")).next()?;
+        let fps = frame_rate_line.replace(" ", "").split(":").last()?.parse::<f32>().ok()?;
+
+        Some((frames_displayed + frames_lost) as f32 / fps)
     }
 
-    /// Return if *all* frames in current second are silent
-    fn is_silent_in_current_second(&self, second: usize) -> bool {
-        let current_index = second as f32 * (self.video_frames.len() as f32 / self.video_seconds);
-        let next_second_index = (second + 1) as f32 * (self.video_frames.len() as f32 / self.video_seconds);
-        let frames_in_this_second: &[bool] = &self.video_frames[current_index.floor() as usize .. next_second_index.floor() as usize];
-        frames_in_this_second.iter().all(|silent| *silent)
+    fn is_silent_in_current_second(&self, second: f32) -> bool {
+        let current_index = second * (self.video_frames.len() as f32 / self.video_seconds);
+        self.video_frames[current_index.floor() as usize]
     }
 
-    fn get_speedup_for_current_second(&self, second: usize) -> f32 {
+    fn get_speedup_for_current_second(&self, second: f32) -> f32 {
         match self.is_silent_in_current_second(second) {
             true => {
                 self.speedup_silent
@@ -195,6 +236,11 @@ impl VlcController {
         }
     }
 
+    /// Generate random password for telnet connection
+    /// that we use to send commands to VLC.
+    /// 
+    /// This is not cryptographically secure, but
+    /// it doesn't really need to be.
     fn generate_telnet_password(&self, length: usize) -> String {
         if length < 4 {
             panic!("Invalid telnet password length.");
