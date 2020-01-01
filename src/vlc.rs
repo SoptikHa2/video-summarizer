@@ -69,7 +69,8 @@ impl VlcController {
         };
         // Start VLC with parameter -Irc
         let vlc_command = Command::new("vlc")
-            .arg("-I telnet")
+            .arg("--extraintf")
+            .arg("telnet")
             .arg("--telnet-password")
             .arg(&telnet_password)
             .arg(parameter_source)
@@ -86,32 +87,38 @@ impl VlcController {
             _ => {}
         }
 
-        // Wait a bit
-        // TODO: sane solution
-        thread::sleep(Duration::from_millis(200));
-        
-            // Initialize telnet
-            self.initialize_vlc_telnet(telnet_password)?;
-            thread::sleep(Duration::from_millis(500));
-            loop {
-               // Repeat this every 200ms...
-                thread::sleep(Duration::from_millis(200));
-                // Ask vlc if the video is playing right now.
-                self.send_to_vlc_via_telnet("is_playing")?;
-                thread::sleep(Duration::from_millis(200));
-                let is_playing = VlcController::parse_vlc_response_to_usize(self.receive_response_from_telnet()?);
-                if is_playing.is_none() { break; }
-                if is_playing.unwrap() == 0 {
-                    // Wait until user starts playing the video
-                    continue;
-                }
-                // Ask vlc for time
-                let time_seconds = self.get_current_time();
-                if time_seconds.is_none() { break; }
-                let speedup = self.get_speedup_for_current_second(time_seconds.unwrap());
-                // Set speedup rate
-                self.send_to_vlc_via_telnet(&format!("rate {}", speedup))?;
+        // Initialize telnet
+        // Try it few times before giving up
+        let mut _telnet_init_result = self.initialize_vlc_telnet(&telnet_password);
+        let mut _telnet_init_try = 0;
+        while _telnet_init_result.is_err() {
+            if _telnet_init_try > 10 {
+                return Err(_telnet_init_result.unwrap_err());
             }
+            thread::sleep(Duration::from_millis(100));
+           _telnet_init_result = self.initialize_vlc_telnet(&telnet_password);
+           _telnet_init_try += 1;
+        }
+        self.wait_until_vlc_accepts_commands();
+        loop {
+           // Repeat this every 200ms...
+            thread::sleep(Duration::from_millis(200));
+            // Ask vlc if the video is playing right now.
+            self.send_to_vlc_via_telnet("is_playing")?;
+            thread::sleep(Duration::from_millis(200));
+            let is_playing = VlcController::parse_vlc_response_to_usize(self.receive_response_from_telnet()?);
+            if is_playing.is_none() { break; }
+            if is_playing.unwrap() == 0 {
+                // Wait until user starts playing the video
+                continue;
+            }
+            // Ask vlc for time
+            let time_seconds = self.get_current_time();
+            if time_seconds.is_none() { break; }
+            let speedup = self.get_speedup_for_current_second(time_seconds.unwrap());
+            // Set speedup rate
+            self.send_to_vlc_via_telnet(&format!("rate {}", speedup))?;
+        }
 
         // Wait for it to finish.
         // The thread will end when vlc process exits.
@@ -119,7 +126,7 @@ impl VlcController {
         Ok(())
     }
 
-    fn initialize_vlc_telnet(&mut self, password: String) -> Result<(), VlcControllerError> {
+    fn initialize_vlc_telnet(&mut self, password: &str) -> Result<(), VlcControllerError> {
         self.telnet_connection = Some(Telnet::connect(("localhost", 4212), 256)?);
         // Send password
         self.telnet_connection.as_mut().unwrap().write(format!("{}\n", password).as_bytes())?;
@@ -243,6 +250,15 @@ impl VlcController {
             password.push(allowed_characters[rnd]);
         }
         password
+    }
+
+    /// Keep trying to execute a closure which returns Result, until it returns a good value.
+    fn wait_until_vlc_accepts_commands(&mut self) {
+        let mut result = self.send_to_vlc_via_telnet("");
+        while result.is_err() {
+            thread::sleep(Duration::from_millis(100));
+            result = self.send_to_vlc_via_telnet("");
+        }
     }
 }
 
