@@ -1,6 +1,6 @@
 **DISCLAIMER**: This is work in progress. It is not yet to be used anywhere where it's important that it doesn't fail. If it doesn't work, file a github issue. Things generally work, but workarounds often include "not messing too much with piping video in/out".
 
-**PROGRESS**: We are working on implementing much faster and efficient way to use this tool. From hours of processing to few seconds. The disadvantage is that vlc media player will become mandatory dependency. You can track progress in the `vlc` branch.
+**PROGRESS**: We are working on implementing much faster and efficient way to use this tool. From hours of processing to few seconds. The disadvantage is that ~~vlc media player~~  mpv will become mandatory dependency. You can track progress in the ~~`vlc`~~`mpv` branch.
 
 This application lets user speed up video at varying rates, based on current loudness. For example, I can speed up loud parts of a lecture 1.5x, and the silent parts 5x. Application does this by taking audio and search where the audio has [suspiciously constant level](https://imgur.com/Y2rzUkK) for big amount of time. Afterwards, I just split it, speed it up, and concatenate it via ffmpeg. This was done primarily to learn more about Rust, but the result are actually much better than I thought. I think this would actually be viable to use in case of internet lectures.
 
