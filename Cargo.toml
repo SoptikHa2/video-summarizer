@@ -14,3 +14,4 @@ categories = ["command-line-utilities", "multimedia", "multimedia::audio", "mult
 
 [dependencies]
 mpv = "0.2.3"
+anyhow = "1.0.31"
