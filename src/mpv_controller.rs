@@ -1,7 +1,7 @@
 use anyhow::{Result, Context};
 use mpv::{MpvHandler, MpvHandlerBuilder};
 
-struct MpvController<'a> {
+pub struct MpvController<'a> {
     playback_speed: Vec<f64>,
     mpv_handler: MpvHandler,
     video_source: &'a str,
@@ -9,8 +9,8 @@ struct MpvController<'a> {
 impl<'a> MpvController<'a> {
     /// Initialize MPV controller. This doesn't actually start
     /// the video, but does start MPV.
-    fn new(mpv_video_source: &'a str) -> Result<MpvController> {
-        let mpv_builder: MpvHandlerBuilder = MpvHandlerBuilder::new().with_context(||"Failed creating MPV handler. Check for libmpv availability. This might also indicate OOM situation or LC_NUMERIC not being set to C.")?;
+    pub fn new(mpv_video_source: &'a str) -> Result<MpvController> {
+        let mut mpv_builder: MpvHandlerBuilder = MpvHandlerBuilder::new().with_context(||"Failed creating MPV handler. Check for libmpv availability. This might also indicate OOM situation or LC_NUMERIC not being set to C.")?;
         // Enable on-screen-controller, which is disabled by default when using libmpv.
         mpv_builder.set_option("osc", true).with_context(||"Failed enabling MPV on screen controller.")?;
         let mut mpv = mpv_builder.build().with_context(||"Failed to create MPV window.")?;
@@ -31,7 +31,7 @@ impl<'a> MpvController<'a> {
     /// 
     /// This is used to push new data to mpvcontroller. Those data HAVE to be
     /// in correct order. 
-    fn push_playback_speed_data(&mut self, playback_speed: f64) {
+    pub fn push_playback_speed_data(&mut self, playback_speed: f64) {
         self.playback_speed.push(playback_speed);
     }
     /// Start playing the video. This is a blocking code,
@@ -44,7 +44,7 @@ impl<'a> MpvController<'a> {
     /// 
     /// TODO: Should we return at the first erorr? Shouldn't we just return iterator of
     /// errors and just keep trying to survive as long as possible?
-    fn start_playing(&mut self) -> Result<()> {
+    pub fn start_playing(&mut self) -> Result<()> {
         // First of all, load the video into MPV so it starts playing.
         self.mpv_handler.command(&["loadfile", self.video_source])
             .with_context(||"Failed to tell MPV about target video source.")?;
