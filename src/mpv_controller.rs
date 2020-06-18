@@ -1,39 +1,34 @@
 use anyhow::{Result, Context};
 use mpv::{MpvHandler, MpvHandlerBuilder};
+use std::thread;
+use std::time::{Duration};
+use std::sync::mpsc::Receiver;
 
 pub struct MpvController<'a> {
-    playback_speed: Vec<f64>,
     mpv_handler: MpvHandler,
     video_source: &'a str,
+    playback_speed_channel_receiver: Receiver<f64>,
 }
 impl<'a> MpvController<'a> {
     /// Initialize MPV controller. This doesn't actually start
     /// the video, but does start MPV.
-    pub fn new(mpv_video_source: &'a str) -> Result<MpvController> {
+    /// 
+    /// The playback speed represents the speed at which video should be playing,
+    /// one per frame.
+    pub fn new(mpv_video_source: &'a str, playback_speed_channel_receiver: Receiver<f64>) -> Result<MpvController> {
         let mut mpv_builder: MpvHandlerBuilder = MpvHandlerBuilder::new().with_context(||"Failed creating MPV handler. Check for libmpv availability. This might also indicate OOM situation or LC_NUMERIC not being set to C.")?;
         // Enable on-screen-controller, which is disabled by default when using libmpv.
         mpv_builder.set_option("osc", true).with_context(||"Failed enabling MPV on screen controller.")?;
         let mut mpv = mpv_builder.build().with_context(||"Failed to create MPV window.")?;
         Ok(
             MpvController {
-                playback_speed: Vec::new(),
+                playback_speed_channel_receiver,
                 mpv_handler: mpv,
                 video_source: mpv_video_source,
             }
         )
     }
-    /// Try to push playback speed of next frame.
-    /// 
-    /// MpvController remembers at which speed to play the target frame.
-    /// All data don't have to be present at startup in order to actually
-    /// play the video. When we don't yet have the required playback speed data,
-    /// we will play the video at default speed.
-    /// 
-    /// This is used to push new data to mpvcontroller. Those data HAVE to be
-    /// in correct order. 
-    pub fn push_playback_speed_data(&mut self, playback_speed: f64) {
-        self.playback_speed.push(playback_speed);
-    }
+
     /// Start playing the video. This is a blocking code,
     /// it might be worth starting this in standalone thread.
     /// 
@@ -49,7 +44,14 @@ impl<'a> MpvController<'a> {
         self.mpv_handler.command(&["loadfile", self.video_source])
             .with_context(||"Failed to tell MPV about target video source.")?;
 
+        // Now, enter loop that will last while we play
         'main: loop {
+            let mut received_speed_data: Vec<f64> = Vec::new();
+            // Save all the data we received so far
+            for value in self.playback_speed_channel_receiver.try_iter() {
+                received_speed_data.push(value);
+            }
+            
             while let Some(event) = self.mpv_handler.wait_event(0.0) {
                 // even if you don't do anything with the events, it is still necessary to empty
                 // the event loop

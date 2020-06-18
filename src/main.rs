@@ -1,5 +1,6 @@
 mod mpv_controller;
 use structopt::StructOpt;
+use std::sync::mpsc::{self, Sender, Receiver};
 
 #[derive(StructOpt)]
 #[structopt(name="Video Summarizer", about="Take video and play it in MPV, speed up based on importance of various parts of the video. Important parts are plalyed at different rate than silent and non-important ones.")]
@@ -21,6 +22,7 @@ struct Opt {
 fn main() {
     let opt = Opt::from_args();
 
-    let mut controller = mpv_controller::MpvController::new(&opt.video_inputfile).unwrap();
+    let (tx, rx) = mpsc::channel::<f64>();
+    let mut controller = mpv_controller::MpvController::new(&opt.video_inputfile, rx).unwrap();
     controller.start_playing();
 }
