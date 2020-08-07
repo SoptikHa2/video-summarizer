@@ -21,6 +21,6 @@ Everything was tested with ffmpeg 4.2, and video summarizer 1.1.1 (the rust cli)
 | Name | Duration (s) | Silent time (%) | Saved time (s) |
 |---|---|---|---|
 |  [DEFCON 17: That Awesome Time I Was Sued For Two Billion Dollars](https://www.youtube.com/watch?v=KSWqx8goqSY) |  1887 | 15.32% | 822 (43.55%) |
-|  [1. Introduction and Scope](https://www.youtube.com/watch?v=TjZBTDzGeGg&t=124s) (MIT AI course) | 2838 |  40.12% | 1706 (60.08%) |
+|  [1. Introduction and Scope](https://www.youtube.com/watch?v=TjZBTDzGeGg) (MIT AI course) | 2838 |  40.12% | 1706 (60.08%) |
 | [Black Mirror: White Christmas ](https://www.imdb.com/title/tt3973198/) | 4326 | 11.93% | 1786 (41.29%) |
 | [Puella Magi Madoka Magica Ep 10](https://www.imdb.com/title/tt1773185/) | 1449 | 7.22% | 553 (38.15%) |
