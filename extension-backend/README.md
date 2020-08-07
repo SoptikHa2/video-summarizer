@@ -1,6 +1,6 @@
 # Video summarizer extension backend
 
-This remembers cache of videos and their speedup rates. So far, user-triggered video speedup rate generating is not implemented.
+This remembers video speedup rates and serves as a cache. So far, user-triggered video speedup rate generating is not implemented.
 
 Video caches are stored in files, named by SHA1 of URL of the video (for example youtube video).
 
