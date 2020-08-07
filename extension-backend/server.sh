@@ -34,11 +34,11 @@ case $request in
         fi
         ;;
     POST)
-        printf 'HTTP/1.1 200 OK\r\nIn construction'
+        printf 'HTTP/1.1 403 Forbidden\r\n\r\nThis can only be run locally.\n'
         ;;
 
     *)
-        printf 'HTTP/1.1 405 Method Not Allowed\r\nAllow: POST\r\n\r\n<img src="https://http.cat/405" />'
+        printf 'HTTP/1.1 405 Method Not Allowed\r\nAllow: GET, POST\r\n\r\n<img src="https://http.cat/405" />'
         exit
         ;;
 esac
