@@ -51,6 +51,11 @@ function change_video_rate() {
     window.requestAnimationFrame(change_video_rate);
 }
 
+// Check if HTML video exists on this page. If so,
+// take the first one and check if there exists server record for this.
+// If it does, start handling speed rate change.
+// If it does not, remember so, so if user opens popup, an index button appears.
+// The index button can be used to send video URL to server which then indexes it.
 async function setup() {
     if(disabled) return;
     videos = document.getElementsByTagName("video")
@@ -61,14 +66,8 @@ async function setup() {
     url = url.replace(/(&[^v&]+=[^&\n]+)/g, ""); // Remove all &non-v
     url = url.replace(/\/&v/, "/?v"); // Transform /&v to /?v
     hash = await sha1(url);
-    console.log('Url: ' + url);
-    console.log('Will be testing ' + hash);
-
-    console.log('it works, found videos length: ' + videos.length)
     if (videos.length > 0) {
         vid = videos[0]
-        console.log('found video')
-        console.log(vid)
 
         // Try to load settings from server
         var request = new XMLHttpRequest();
@@ -87,7 +86,6 @@ async function setup() {
             window.requestAnimationFrame(change_video_rate);
           } else {
             // We reached our target server, but it returned an error
-            console.log('It looks like the target isnt cached yet. So far, users don\'t have an option to submit a video for caching. Sorry!');
             permiturl = url
             window.requestAnimationFrame(change_video_rate);
           }
@@ -113,12 +111,9 @@ async function sha1( str ) {
     return result;
 }
 
-console.log('a');
 setup();
 
 function handleMessage(request, sender, sendResponse) {
-    console.log('received message');
-    console.log('will send: ' + permiturl);
     if(request.type == "can_we_index") {
         sendResponse({url: permiturl});
     } else {
@@ -127,4 +122,3 @@ function handleMessage(request, sender, sendResponse) {
 }
 
 browser.runtime.onMessage.addListener(handleMessage);
-console.log('setup listener');

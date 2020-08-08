@@ -22,7 +22,7 @@ function loadSettings() {
 }
 loadSettings();
 
-
+// When user changes slider or number, update the other one and save it
 function numLoudChanged() {
     if (suppress) return;
     suppress = true;
@@ -59,6 +59,8 @@ function rangeSilentChanged() {
     });
     suppress = false;
 }
+
+// Handle extension enable togglebutton
 function enableToggle() {
     let nextState = !disabled;
     let nextText = disabled ? '(Reload page to take effect)' : 'Enable';
@@ -68,6 +70,10 @@ function enableToggle() {
     enableButton.innerText = nextText;
     disabled = nextState;
 }
+
+// Ask content script of currently active tab
+// if we can allow user to index this tab, and if so,
+// which URL should be used.
 function checkIfWeCanIndex(tabs) {
     for (let tab of tabs) {
         console.log(tab);
@@ -89,6 +95,8 @@ function checkIfWeCanIndex(tabs) {
         }, console.error);
     }
 }
+
+// Send request to server to index current video
 function indexCurrentPage() {
     if (indexurl != null) {
         var request = new XMLHttpRequest();
@@ -110,6 +118,8 @@ function indexCurrentPage() {
         }
     }
 }
+
+
 
 numLoud.addEventListener("input", numLoudChanged);
 rangeLoud.addEventListener("input", rangeLoudChanged);
