@@ -23,7 +23,7 @@ if [[ $force_recompute -eq 0 ]]; then
 
     # If we didn't yet download the video, do so now
     if [ ! -e "videocache/$urlhash.audiolevels" ]; then
-        sound_levels="$(youtube-dl "$1" -f worstaudio -o - | ffmpeg -i - -af astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=- -f null -)"
+        sound_levels="$(youtube-dl "$1" --no-playlist -f worstaudio -o - | ffmpeg -i - -af astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=- -f null -)"
 
         echo "$sound_levels" | grep -Eo -- '-?(inf)?[0-9]*(\.[0-9]+)?$' | sed 'N;s/\n/ /' | grep -v inf | awk '$2 > -50 { print $0 }' > "videocache/$urlhash.audiolevels"
     fi
