@@ -3,10 +3,17 @@
     "name": "Video Summarizer",
     "version": "1.0",
     "author": "Petr Šťastný",
+    "developer": {
+        "name": "Petr Šťastný",
+        "url": "https://soptik.tech"
+    },
+    "homepage_url": "https://github.com/soptikha2/video-summarizer",
 
     "description": "Changes playback speed for videos depending on loundness of the video. Speed up long lectures at different rates, depending on whether the teacher is saying something or is just silently writing something on whiteboard.",
 
     "icons": {
+        "16": "icon.svg",
+        "32": "icon.svg",
         "48": "icon.svg",
         "96": "icon.svg"
     },
@@ -17,6 +24,17 @@
             "js": ["js/summarize.js"]
         }
     ],
+    "browser_action": {
+        "browser_style": true,
+        "default_icon" : {
+            "16": "icon.svg",
+            "32": "icon.svg",
+            "48": "icon.svg",
+            "96": "icon.svg"
+        },
+        "default_title": "Video Summarizer",
+        "default_popup": "popup/menu.html"
+    },
     "permissions": [
         "<all_urls>",
         "webRequest",
