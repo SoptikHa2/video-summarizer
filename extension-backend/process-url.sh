@@ -12,7 +12,8 @@ set -euo pipefail
 
 urlhash="$1"
 if [[ $force_recompute -eq 0 ]]; then
-    urlhash=$(sha1sum <<<"$1" | cut -d' ' -f1)
+    # NOTE: Here we need to do the printf and pipe, or else the hash is different - probably because of some newline at end for some reason?
+    urlhash=$(printf "$1" | sha1sum | cut -d' ' -f1)
 
     if [ -e "videocache/$urlhash" ]; then
         echo "There already exists this url with hash $urlhash. Delete it to recompute." >&2
