@@ -28,7 +28,7 @@ case $request in
         destination=${destination%%/*}
         # Check if the video exists
         if [[ -n "$destination" ]] && [[ -e "videocache/$destination" ]]; then
-            val=$("cat videocache/$destination")
+            val=$(cat "videocache/$destination")
             printf 'HTTP/1.1 200 OK\r\n\r\n%s' "$val"
         else
             printf 'HTTP/1.1 404 Not Found\r\n\r\n%s' "<img src='https://http.cat/404'>"
