@@ -58,7 +58,7 @@ function rangeSilentChanged() {
 }
 function enableToggle() {
     let nextState = !disabled;
-    let nextText = disabled ? 'Disable' : 'Enable';
+    let nextText = disabled ? '(Reload page to take effect)' : 'Enable';
     browser.storage.local.set({
         DISABLED: nextState
     });

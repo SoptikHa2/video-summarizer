@@ -7,11 +7,11 @@ var RATE_SILENT = 4;
 var disabled = false;
 // Try to load non-default settings
 function loadSettings() {
-    let settings_rloud = browser.storage.sync.get("RATE_LOUD");
+    let settings_rloud = browser.storage.local.get("RATE_LOUD");
     settings_rloud.then((a) => RATE_LOUD = a.RATE_LOUD, () => {});
-    let settings_rsilent = browser.storage.sync.get("RATE_SILENT");
+    let settings_rsilent = browser.storage.local.get("RATE_SILENT");
     settings_rsilent.then((a) => RATE_SILENT = a.RATE_SILENT, () => {});
-    let settings_disabled = browser.storage.sync.get("DISABLED");
+    let settings_disabled = browser.storage.local.get("DISABLED");
     settings_disabled.then((a) => disabled = a.DISABLED, () => {});
 }
 loadSettings();
@@ -38,7 +38,6 @@ function change_video_rate() {
             next_rate = data[1] ? RATE_LOUD : RATE_SILENT;
         }
 
-        console.log(next_rate);
         vid.playbackRate = next_rate;
     }
 
