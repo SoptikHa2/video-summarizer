@@ -2,6 +2,7 @@
     "manifest_version": 2,
     "name": "Video Summarizer",
     "version": "1.0",
+    "author": "Petr Šťastný",
 
     "description": "Changes playback speed for videos depending on loundness of the video. Speed up long lectures at different rates, depending on whether the teacher is saying something or is just silently writing something on whiteboard.",
 
