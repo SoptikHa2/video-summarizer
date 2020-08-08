@@ -2,10 +2,22 @@ var video_data = null;
 var vid = null;
 var effective_url = null;
 
-const RATE_LOUD = 1.5;
-const RATE_SILENT = 4;
+var RATE_LOUD = 1.5;
+var RATE_SILENT = 4;
+var enabled = true;
+// Try to load non-default settings
+{
+    let settings_rloud = browser.storage.sync.get("RATE_LOUD");
+    settings_rloud.then((a) => RATE_LOUD = a, () => {});
+    let settings_rsilent = browser.storage.sync.get("RATE_SILENT");
+    settings_rsilent.then((a) => RATE_SILENT = a, () => {});
+    let settings_enabled = browser.storage.sync.get("ENABLED");
+    settings_enabled.then((a) => enabled = a, () => {});
+}
 
 function change_video_rate() {
+    if(!enabled) return;
+
     if (effective_url != document.location.toString()) {
         video_data = null;
         setup();
@@ -32,6 +44,7 @@ function change_video_rate() {
 }
 
 async function setup() {
+    if(!enabled) return;
     videos = document.getElementsByTagName("video")
     effective_url = document.location.toString();
     url = document.location.toString().replace(/[#].*/g, "");
