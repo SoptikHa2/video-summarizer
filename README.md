@@ -8,7 +8,7 @@ This extension analyses video (typically youtube one, but shall work with any HT
 
 This saves quite a bit of time, especially during watching long lectures.
 
-[Get it for Firefox](https://addons.mozilla.org/en-US/firefox/addon/video-summarizer/) (Important: Videos that are controlled by this extension are stored on my server. So most videos are not indexed and thus not managed by this extension yet! To index a video, navigate to it and click on the addon icon located next to URL bar. After few seconds, the video should be ready to view through the extension.)
+[**Get it for Firefox**](https://addons.mozilla.org/en-US/firefox/addon/video-summarizer/) (Important: Videos that are controlled by this extension are stored on my server. So most videos are not indexed and thus not managed by this extension yet! To index a video, navigate to it and click on the addon icon located next to URL bar. After few seconds, the video should be ready to view through the extension.)
 
 Google Chrome and chromium-based browsers are not currently supported. Mostly because it costs money to buy developer account. [Support me](https://paypal.me/stastnysoptik) if you like my work. If I receive 25USD or whatever google development account costs, I'll make a chrome extension.
 
