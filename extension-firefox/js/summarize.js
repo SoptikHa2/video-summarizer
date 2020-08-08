@@ -1,27 +1,44 @@
-var video_data = [];
+var video_data = null;
 var vid = null;
+var effective_url = null;
 
 const RATE_LOUD = 1.5;
 const RATE_SILENT = 4;
 
 function change_video_rate() {
-    next_rate = RATE_LOUD;
-    let seconds = vid.currentTime;
-    for (idx in video_data) {
-        let data = video_data[idx];
-        if (data[0] >= seconds) break;
-        next_rate = data[1] ? RATE_LOUD : RATE_SILENT;
+    if (effective_url != document.location.toString()) {
+        video_data = null;
+        setup();
+        return;
     }
 
-    console.log(next_rate);
-    vid.playbackRate = next_rate;
+    // We need to run this change_video_rate() even if we cannot alter video rate -
+    // as above, we are listening to URL changes to be able to switch video without
+    // page reload
+    if(video_data != null) {
+        next_rate = RATE_LOUD;
+        let seconds = vid.currentTime;
+        for (idx in video_data) {
+            let data = video_data[idx];
+            if (data[0] >= seconds) break;
+            next_rate = data[1] ? RATE_LOUD : RATE_SILENT;
+        }
+
+        console.log(next_rate);
+        vid.playbackRate = next_rate;
+    }
 
     window.requestAnimationFrame(change_video_rate);
 }
 
 async function setup() {
     videos = document.getElementsByTagName("video")
+    effective_url = document.location.toString();
     url = document.location.toString().replace(/[#].*/g, "");
+    // Remove all query params except for ?v= (on youtube)
+    url = url.replace(/(\?[^v&]+=[^&]+)/, ""); // Remove all ?non-v
+    url = url.replace(/(&[^v&]+=[^&\n]+)/g, ""); // Remove all &non-v
+    url = url.replace(/\/&v/, "/?v"); // Transform /&v to /?v
     hash = await sha1(url);
     console.log('Url: ' + url);
     console.log('Will be testing ' + hash);
@@ -41,6 +58,7 @@ async function setup() {
             // Success!
             var data = this.response;
             var dataLines = data.split('\n');
+            video_data = []
             for (idx in dataLines) {
                 line = dataLines[idx].split(' ');
                 video_data.push([parseFloat(line[0]), line[1] == '1']);
@@ -49,6 +67,7 @@ async function setup() {
           } else {
             // We reached our target server, but it returned an error
             console.log('It looks like the target isnt cached yet. So far, users don\'t have an option to submit a video for caching. Sorry!');
+            window.requestAnimationFrame(change_video_rate);
           }
         };
     
