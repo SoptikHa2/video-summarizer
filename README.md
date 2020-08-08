@@ -36,3 +36,7 @@ Everything was tested with ffmpeg 4.2, and video summarizer 1.1.1 (the rust cli)
 |  [1. Introduction and Scope](https://www.youtube.com/watch?v=TjZBTDzGeGg) (MIT AI course) | 2838 |  40.12% | 1706 (60.08%) |
 | [Black Mirror: White Christmas ](https://www.imdb.com/title/tt3973198/) | 4326 | 11.93% | 1786 (41.29%) |
 | [Puella Magi Madoka Magica Ep 10](https://www.imdb.com/title/tt1773185/) | 1449 | 7.22% | 553 (38.15%) |
+
+## Other projects
+
+- [desed](https://github.com/soptikha2/desed), a TUI debugger for sed written in rust. Supports breakpoints, displays variables and allows one to step both forward & backwards. Supports live reload while editing the script.
