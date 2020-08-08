@@ -1,5 +1,6 @@
 #!/bin/bash
 # Shell server adapted from ynaas: https://github.com/izabera/ynaas
+set -euo pipefail
 
 host=videosummarizer.soptik.tech
 IFS=$' \t\n\r'
