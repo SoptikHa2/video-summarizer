@@ -1,10 +1,14 @@
-# Video summarizer
+# Video summarizer <img src="extension-firefox/icon.svg" align="right" />
 
-This can be used to play videos at varying speeds based on how much is the video interesting. So far there is no neural net in the backend, it's based on loundness. So no more long seconds watching teacher writing on whiteboard.
+Changes playback speed for videos depending on loudness of the video. Speed up long lectures at different rates, depending on whether the teacher is saying something or is just silently writing something on whiteboard.
 
-INSERT FANCY GIF HERE
+This extension analyses video (typically youtube one, but shall work with any HTML video) and, depending on current loundness of the video, speeds it up at different rates. One can for example speed up teacher talking at 1.5x rate, and speed up teacher writing something at whiteboard at 4x rate.
 
-For example, one can watch a long lecture, playing the parts where someone is talking at `1.5` rate, and skip the silent parts with `5x` rate.
+This saves quite a bit of time, especially during watching long lectures.
+
+[Get it for Firefox](https://addons.mozilla.org/en-US/firefox/addon/video-summarizer/)
+
+Google Chrome and chromium-based browsers are not currently supported. Mostly because it costs money to buy developer account. [Support me](paypal.me/stastnysoptik) if you like my work. If I receive 25USD or whatever google development account costs, I'll make the chrome extension.
 
 ## Usage
 
