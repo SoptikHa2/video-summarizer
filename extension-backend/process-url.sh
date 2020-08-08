@@ -9,6 +9,7 @@ if [[ -n "$2" ]] && [[ "$2" == "--recompute" ]]; then
 fi
 
 set -euo pipefail
+mkdir -p videocache
 
 urlhash="$1"
 if [[ $force_recompute -eq 0 ]]; then
