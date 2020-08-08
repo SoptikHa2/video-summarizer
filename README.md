@@ -2,6 +2,8 @@
 
 Changes playback speed for videos depending on loudness of the video. Speed up long lectures at different rates, depending on whether the teacher is saying something or is just silently writing something on whiteboard.
 
+<img src="ff-vidsum-ui.png" align="right" />
+
 This extension analyses video (typically youtube one, but shall work with any HTML video) and, depending on current loundness of the video, speeds it up at different rates. One can for example speed up teacher talking at 1.5x rate, and speed up teacher writing something at whiteboard at 4x rate.
 
 This saves quite a bit of time, especially during watching long lectures.
