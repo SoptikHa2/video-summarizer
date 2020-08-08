@@ -1,26 +1,30 @@
 #!/bin/bash
 # Process url at $1
 
-# Force rewrite if there already exists a record. This can be specified as $2="-f"
-force=0
-if [[ -n "$2" ]] && [[ "$2" == "-f" ]]; then
-    force=1
+# Force rewrite if there already exists a record. This can be specified as $2="--recompute". This also assumes user
+# will specify hash directly instead of URL and the audiolevels file already exists
+force_recompute=0
+if [[ -n "$2" ]] && [[ "$2" == "--recompute" ]]; then
+    force_recompute=1
 fi
 
 set -euo pipefail
 
-urlhash=$(sha1sum <<<"$1" | cut -d' ' -f1)
+urlhash="$1"
+if [[ $force_recompute -eq 0 ]]; then
+    urlhash=$(sha1sum <<<"$1" | cut -d' ' -f1)
 
-if [ -e "videocache/$urlhash" ] && [[ $force -eq 0 ]]; then
-    echo "There already exists this url with hash $urlhash. Delete it to recompute." >&2
-    exit 1
-fi
+    if [ -e "videocache/$urlhash" ]; then
+        echo "There already exists this url with hash $urlhash. Delete it to recompute." >&2
+        exit 1
+    fi
 
-# If we didn't yet download the video, do so now
-if [ -e "videocache/$urlhash.soundlevels" ]; then
-    sound_levels="$(youtube-dl "$1" -f worstaudio -o - | ffmpeg -i - -af astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=- -f null -)"
+    # If we didn't yet download the video, do so now
+    if [ -e "videocache/$urlhash.soundlevels" ]; then
+        sound_levels="$(youtube-dl "$1" -f worstaudio -o - | ffmpeg -i - -af astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=- -f null -)"
 
-    echo "$sound_levels" | grep -Eo -- '-?(inf)?[0-9]*(\.[0-9]+)?$' | sed 'N;s/\n/ /' | grep -v inf | awk '$2 > -50 { print $0 }' > "videocache/$urlhash.audiolevels"
+        echo "$sound_levels" | grep -Eo -- '-?(inf)?[0-9]*(\.[0-9]+)?$' | sed 'N;s/\n/ /' | grep -v inf | awk '$2 > -50 { print $0 }' > "videocache/$urlhash.audiolevels"
+    fi
 fi
 
 # Process the audio levels
