@@ -8,7 +8,7 @@ This saves quite a bit of time, especially during watching long lectures.
 
 [Get it for Firefox](https://addons.mozilla.org/en-US/firefox/addon/video-summarizer/)
 
-Google Chrome and chromium-based browsers are not currently supported. Mostly because it costs money to buy developer account. [Support me](paypal.me/stastnysoptik) if you like my work. If I receive 25USD or whatever google development account costs, I'll make the chrome extension.
+Google Chrome and chromium-based browsers are not currently supported. Mostly because it costs money to buy developer account. [Support me](paypal.me/stastnysoptik) if you like my work. If I receive 25USD or whatever google development account costs, I'll make a chrome extension.
 
 ## Usage
 
