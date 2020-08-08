@@ -20,7 +20,7 @@ case $request in
         # Throw the request away if it contains dot, percent sign, dollar or a backtick
         # I don't want to validate percent-encoding in bash
         if [[ $destination == *.* ]] || [[ $destination == *%* ]] || [[ $destination == *\`* ]] || [[ $destination == *\$* ]]; then
-            printf 'HTTP/1.1 400\r\n\r\n<img src="https://http.cat/400">Please do not use dots, dollar signs, backticks or percent encoding.'
+            printf 'HTTP/1.1 400 Bad Request\r\n\r\n<img src="https://http.cat/400">Please do not use dots, dollar signs, backticks or percent encoding.'
             exit
         fi
         # Throw away all the slashes. Save just the first string inbetween slashes into $destination
@@ -35,7 +35,16 @@ case $request in
         fi
         ;;
     POST)
-        printf 'HTTP/1.1 403 Forbidden\r\n\r\nThis can only be run locally.\n'
+        read -r -n "${length?}" targeturl
+        if [[ "$targeturl" == "* *" ]]; then
+            printf 'HTTP/1.1 400 Bad Request\r\n\r\n Url shouldn`t contain spaces.'
+            exit
+        fi
+        ./process-url.sh "$targeturl" || {
+            printf 'HTTP/1.1 500 Internal Server Error\r\n\r\n Something went wrong while processing video.'
+            exit
+        }
+        printf 'HTTP/1.1 201 Created\r\n\r\n<img src="https://http.cat/201" />'
         ;;
 
     *)
