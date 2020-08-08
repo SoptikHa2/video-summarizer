@@ -24,7 +24,7 @@ There are multiple sections here in the repo.
 
 - [rust-desktop-cli](rust-desktop-cli) (unmantained obsolete cli. It works, but uses ffmpeg and is a bit slow)
 - [extension-backend](extension-backend) (shell & gnu coreutils-powered backend that analyzes video sound, caches it, and serves via http server)
-- [extension-firefox](extension-firefox) (firefox extension that speeds up videos based on backend response)
+- [extension-firefox](extension-firefox) (firefox extension that speeds up videos based on backend response) [Get it for Firefox](https://addons.mozilla.org/en-US/firefox/addon/video-summarizer/)
 
 ## Results
 
