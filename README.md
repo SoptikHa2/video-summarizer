@@ -11,7 +11,7 @@ For example, one can watch a long lecture, playing the parts where someone is ta
 There are multiple sections here in the repo.
 
 - [rust-desktop-cli](rust-desktop-cli) (unmantained obsolete cli. It works, but uses ffmpeg and is a bit slow)
-- [extension-backend](extension-backend) (shell & rust backend that analyzes video sound and caches it, but doesn't do much else)
+- [extension-backend](extension-backend) (shell & gnu coreutils-powered backend that analyzes video sound, caches it, and serves via http server)
 - [extension-firefox](extension-firefox) (firefox extension that speeds up videos based on backend response)
 
 ## Results
