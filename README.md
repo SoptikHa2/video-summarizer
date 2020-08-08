@@ -1,6 +1,6 @@
 # Video summarizer <img src="extension-firefox/icon.svg" align="right" />
 
-Changes playback speed for videos depending on loudness of the video. Speed up long lectures at different rates, depending on whether the teacher is saying something or is just silently writing something on whiteboard.
+A tool and browser extensions that determines if people in video are currently talking or not, and speeds up the video accordingly. Great for long lecture videos for skipping time spent writing on a whiteboard.
 
 <img src="ff-vidsum-ui.png" align="right" />
 
