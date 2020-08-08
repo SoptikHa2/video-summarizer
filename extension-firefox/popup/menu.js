@@ -1,4 +1,6 @@
 enableButton = document.getElementById('activateButton');
+indexDiv = document.getElementById('indexDiv');
+indexButton = document.getElementById('indexButton');
 numLoud = document.getElementById('numLoud');
 numSilent = document.getElementById('numSilent');
 rangeLoud = document.getElementById('rangeLoud');
@@ -8,6 +10,7 @@ let suppress = false;
 var RATE_LOUD = 1.5;
 var RATE_SILENT = 4;
 var disabled = false;
+var indexurl = null;
 // Try to load non-default settings
 function loadSettings() {
     let settings_rloud = browser.storage.local.get("RATE_LOUD");
@@ -65,9 +68,54 @@ function enableToggle() {
     enableButton.innerText = nextText;
     disabled = nextState;
 }
+function checkIfWeCanIndex(tabs) {
+    for (let tab of tabs) {
+        console.log(tab);
+        console.log('sending');
+        var message = browser.tabs.sendMessage(
+            tab.id,
+        {
+            type: "can_we_index"
+        });
+        message.then((m) => {
+            console.log('received response');
+            indexurl = m.url;
+            console.log(indexurl);
+            if (indexurl != null) {
+                console.log(indexurl);
+                indexDiv.style = "";
+                indexButton.style = "";
+            }
+        }, console.error);
+    }
+}
+function indexCurrentPage() {
+    if (indexurl != null) {
+        var request = new XMLHttpRequest();
+        request.open('POST', 'https://videosummarizer.soptik.tech', true);
+        request.send(indexurl);
+        indexButton.innerText = "indexing...";
+        indexButton.disabled = true;
+        request.onload = function() {
+            if (this.status >= 200 && this.status < 400) {
+                indexButton.innerText = "Indexed! Reload page";
+            } else {
+                indexButton.innerText = "An error occured.";
+                indexButton.disabled = false;
+            }
+        }
+        request.onerror = function() {
+            indexButton.innerText = "Couldn\'t connect to server.";
+            indexButton.disabled = false;
+        }
+    }
+}
 
 numLoud.addEventListener("input", numLoudChanged);
 rangeLoud.addEventListener("input", rangeLoudChanged);
 numSilent.addEventListener("input", numSilentChanged);
 rangeSilent.addEventListener("input", rangeSilentChanged);
 enableButton.addEventListener("click", enableToggle);
+indexButton.addEventListener("click", indexCurrentPage);
+
+browser.tabs.query({currentWindow: true, active: true}).then(checkIfWeCanIndex);

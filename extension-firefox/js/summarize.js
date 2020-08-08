@@ -1,6 +1,13 @@
 var video_data = null;
 var vid = null;
+// This remembers the effective url of the page. Url of page can change
+// without triggering this extension code reload! So we need to do this
+// ourselves.
 var effective_url = null;
+// If permiturl is not set to null (Which happens when there is video on this page
+// but it is not yet indexed), the popup will know that it can present index button
+// to the user
+var permiturl = null;
 
 var RATE_LOUD = 1.5;
 var RATE_SILENT = 4;
@@ -81,13 +88,13 @@ async function setup() {
           } else {
             // We reached our target server, but it returned an error
             console.log('It looks like the target isnt cached yet. So far, users don\'t have an option to submit a video for caching. Sorry!');
+            permiturl = url
             window.requestAnimationFrame(change_video_rate);
           }
         };
     
         request.onerror = function() {
             console.log('Couldn\'t connect to server.');
-            console.log(this);
           // There was a connection error of some sort
         };
     
@@ -106,4 +113,18 @@ async function sha1( str ) {
     return result;
 }
 
+console.log('a');
 setup();
+
+function handleMessage(request, sender, sendResponse) {
+    console.log('received message');
+    console.log('will send: ' + permiturl);
+    if(request.type == "can_we_index") {
+        sendResponse({url: permiturl});
+    } else {
+        console.log("Unknown request type: " + request.type);
+    }
+}
+
+browser.runtime.onMessage.addListener(handleMessage);
+console.log('setup listener');
