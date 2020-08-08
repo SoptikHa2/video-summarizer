@@ -50,7 +50,7 @@ $2 <= threshold {
 
 # Smooth playback
 # Just extend each loud pattern by X frames to left and right
-extend_loudness=2
+extend_loudness=3
 function smooth_forward {
     gawk -i inplace -v "n=$extend_loudness" '
     BEGIN { beg=-100000 }
@@ -87,4 +87,4 @@ $2 != lastVolume {
 # We want to keep it for now. As heuristic will probably change often
 # while this is in development and I don't want to redownload videos
 # in order to recompute everything
-# rm "videocache/$urlhash.audiolevels"
+rm "videocache/$urlhash.audiolevels"
