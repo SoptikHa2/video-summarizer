@@ -12,6 +12,12 @@ This saves quite a bit of time, especially during watching long lectures.
 
 Google Chrome and chromium-based browsers are not currently supported. Mostly because it costs money to buy developer account. [Support me](paypal.me/stastnysoptik) if you like my work. If I receive 25USD or whatever google development account costs, I'll make a chrome extension.
 
+## How does it work
+
+There are two parts to this extension: frontend and backend. Backend indexes videos: downloads them via youtube-dl, extracts sound with ffmpeg and analyzes it with shell and awk (yes, the server is written entirely with gnu coreutils). Generally we seek parts of videos that are greatly below or above average sound of the video. This way, we can determine which parts of video are loud and which are silent.
+
+When frontend navigates to a page, it checks if there is a HTML5 video. If so, it hashes current URL (after removing uninteresting query parameters and such) and sends it to server, which determines if it has current video cached. Frontend may receive response, which tells it which parts of video are loud or silent. In the opposite case, a button in extension popup panel (the thing that appears when one clicks the extension button next to url bar) appears that allows user to submit video to server for indexation. This generally takes about ten seconds for short videos (sub-10 minutes).
+
 ## Usage
 
 There are multiple sections here in the repo.
