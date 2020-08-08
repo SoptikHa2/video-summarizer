@@ -1,0 +1,23 @@
+{
+    "manifest_version": 2,
+    "name": "Video Summarizer",
+    "version": "1.0",
+
+    "description": "Changes playback speed for videos depending on loundness of the video. Speed up long lectures at different rates, depending on whether the teacher is saying something or is just silently writing something on whiteboard.",
+
+    "icons": {
+        "48": "icon.svg",
+        "96": "icon.svg"
+    },
+
+    "content_scripts": [
+        {
+            "matches": ["<all_urls>"],
+            "js": ["js/summarize.js"]
+        }
+    ],
+    "permissions": [
+        "<all_urls>",
+        "webRequest"
+    ]
+}
