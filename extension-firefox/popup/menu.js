@@ -14,11 +14,11 @@ var indexurl = null;
 // Try to load non-default settings
 function loadSettings() {
     let settings_rloud = browser.storage.local.get("RATE_LOUD");
-    settings_rloud.then((a) => { RATE_LOUD = a.RATE_LOUD; numLoud.value = a.RATE_LOUD; rangeLoud.value = a.RATE_LOUD; }, () => {});
+    settings_rloud.then((a) => { RATE_LOUD = a.RATE_LOUD ?? RATE_LOUD; numLoud.value = a.RATE_LOUD ?? RATE_LOUD; rangeLoud.value = a.RATE_LOUD ?? RATE_LOUD; }, () => {});
     let settings_rsilent = browser.storage.local.get("RATE_SILENT");
-    settings_rsilent.then((a) => { RATE_SILENT = a.RATE_SILENT; numSilent.value = a.RATE_SILENT; rangeSilent.value = a.RATE_SILENT; }, () => {});
+    settings_rsilent.then((a) => { RATE_SILENT = a.RATE_SILENT ?? RATE_SILENT; numSilent.value = a.RATE_SILENT ?? RATE_SILENT; rangeSilent.value = a.RATE_SILENT ?? RATE_SILENT; }, () => {});
     let settings_disabled = browser.storage.local.get("DISABLED");
-    settings_disabled.then((a) => { disabled = a.DISABLED; enableButton.innerText = a.DISABLED ? 'Enable' : 'Disable'; }, () => {});
+    settings_disabled.then((a) => { disabled = a.DISABLED ?? false; enableButton.innerText = (a.DISABLED ?? false) ? 'Enable' : 'Disable'; }, () => {});
 }
 loadSettings();
 
