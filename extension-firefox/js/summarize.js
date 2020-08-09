@@ -76,6 +76,8 @@ async function setup() {
         request.onload = function() {
           if (this.status >= 200 && this.status < 400) {
             // Success!
+            // No longer permit indexation
+            permiturl = null;
             var data = this.response;
             var dataLines = data.split('\n');
             video_data = []
@@ -116,6 +118,8 @@ setup();
 function handleMessage(request, sender, sendResponse) {
     if(request.type == "can_we_index") {
         sendResponse({url: permiturl});
+    } else if (request.type == "restart_setup") {
+        setup();
     } else {
         console.log("Unknown request type: " + request.type);
     }

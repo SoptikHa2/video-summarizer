@@ -62,13 +62,24 @@ function rangeSilentChanged() {
 
 // Handle extension enable togglebutton
 function enableToggle() {
-    let nextState = !disabled;
-    let nextText = disabled ? '(Reload page to take effect)' : 'Enable';
+    disabled = !disabled;
+    let nextText = disabled ? 'Enable' : 'Disable';
+    if (!disabled) {
+        // Send message to main script to reload
+        browser.tabs.query({currentWindow: true, active: true}).then((tabs) => {
+            for (let tab of tabs) {
+                browser.tabs.sendMessage(
+                    tab.id,
+                    {
+                        type: "restart_setup"
+                    });
+            }
+        });
+    }
     browser.storage.local.set({
-        DISABLED: nextState
+        DISABLED: disabled
     });
     enableButton.innerText = nextText;
-    disabled = nextState;
 }
 
 // Ask content script of currently active tab
@@ -76,19 +87,14 @@ function enableToggle() {
 // which URL should be used.
 function checkIfWeCanIndex(tabs) {
     for (let tab of tabs) {
-        console.log(tab);
-        console.log('sending');
         var message = browser.tabs.sendMessage(
             tab.id,
         {
             type: "can_we_index"
         });
         message.then((m) => {
-            console.log('received response');
             indexurl = m.url;
-            console.log(indexurl);
             if (indexurl != null) {
-                console.log(indexurl);
                 indexDiv.style = "";
                 indexButton.style = "";
             }
@@ -106,7 +112,17 @@ function indexCurrentPage() {
         indexButton.disabled = true;
         request.onload = function() {
             if (this.status >= 200 && this.status < 400) {
-                indexButton.innerText = "Indexed! Reload page";
+                indexButton.innerText = "Indexed!";
+                // Send message to main script to reload
+                browser.tabs.query({currentWindow: true, active: true}).then((tabs) => {
+                    for (let tab of tabs) {
+                        browser.tabs.sendMessage(
+                            tab.id,
+                            {
+                                type: "restart_setup"
+                            });
+                    }
+                });
             } else {
                 indexButton.innerText = "An error occured.";
                 indexButton.disabled = false;
