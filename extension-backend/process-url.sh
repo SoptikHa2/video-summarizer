@@ -84,7 +84,4 @@ $2 != lastVolume {
 ' "videocache/$urlhash"
 
 
-# We want to keep it for now. As heuristic will probably change often
-# while this is in development and I don't want to redownload videos
-# in order to recompute everything
 rm "videocache/$urlhash.audiolevels"
