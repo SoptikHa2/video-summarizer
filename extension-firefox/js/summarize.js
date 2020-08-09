@@ -64,7 +64,7 @@ async function setup() {
     // Remove all query params except for ?v= (on youtube)
     url = url.replace(/(\?[^v&]+=[^&]+)/, ""); // Remove all ?non-v
     url = url.replace(/(&[^v&]+=[^&\n]+)/g, ""); // Remove all &non-v
-    url = url.replace(/\/&v/, "/?v"); // Transform /&v to /?v
+    url = url.replace(/&v/, "?v"); // Transform &v to ?v
     hash = await sha1(url);
     if (videos.length > 0) {
         vid = videos[0]
