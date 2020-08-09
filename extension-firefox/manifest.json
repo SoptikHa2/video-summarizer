@@ -27,10 +27,10 @@
     "browser_action": {
         "browser_style": true,
         "default_icon" : {
-            "16": "icon.svg",
-            "32": "icon.svg",
-            "48": "icon.svg",
-            "96": "icon.svg"
+            "16": "icon-grayscale.svg",
+            "32": "icon-grayscale.svg",
+            "48": "icon-grayscale.svg",
+            "96": "icon-grayscale.svg"
         },
         "default_title": "Video Summarizer",
         "default_popup": "popup/menu.html"
