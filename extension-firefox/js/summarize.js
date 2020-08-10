@@ -32,10 +32,6 @@ function change_video_rate() {
 
     if (effective_url != document.location.toString()) {
         video_data = null;
-        // Reset video speed
-        if(vid != null && vid != undefined) {
-            vid.playbackRate = 1;
-        }
         setup();
         return;
     }
@@ -73,7 +69,9 @@ async function setup() {
     url = url.replace(/&v/, "?v"); // Transform &v to ?v
     hash = await sha1(url);
     if (videos.length > 0) {
-        vid = videos[0]
+        vid = videos[0];
+        // Reset playback speed that might be off due to previous video
+        vid.playbackRate = 1;
 
         // Try to load settings from server
         var request = new XMLHttpRequest();
