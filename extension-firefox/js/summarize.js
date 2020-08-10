@@ -25,7 +25,10 @@ loadSettings();
 
 function change_video_rate() {
     loadSettings();
-    if(disabled) return;
+    if(disabled) {
+        window.setTimeout(change_video_rate, 1000);
+        return;
+    };
 
     if (effective_url != document.location.toString()) {
         video_data = null;
@@ -57,7 +60,6 @@ function change_video_rate() {
 // If it does not, remember so, so if user opens popup, an index button appears.
 // The index button can be used to send video URL to server which then indexes it.
 async function setup() {
-    if(disabled) return;
     videos = document.getElementsByTagName("video")
     effective_url = document.location.toString();
     url = document.location.toString().replace(/[#].*/g, "");
