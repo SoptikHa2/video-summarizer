@@ -3,6 +3,7 @@
 A tool and browser extensions that determines if people in video are currently talking or not, and speeds up the video accordingly. Great for long lecture videos for skipping time spent writing on a whiteboard.
 
 <a href="https://soptik.tech/download/ff-vidsum-showcase.mp4"><img src="ff-vidsum-showcase.png" /></a>
+(*Click to view video showcase*)
 
 <img src="ff-vidsum-ui.png" align="right" />
 
