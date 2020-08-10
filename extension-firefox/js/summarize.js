@@ -32,6 +32,8 @@ function change_video_rate() {
 
     if (effective_url != document.location.toString()) {
         video_data = null;
+        // Reset video speed
+        vid?.playbackRate = 1;
         setup();
         return;
     }
