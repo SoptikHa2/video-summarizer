@@ -2,6 +2,8 @@
 
 A tool and browser extensions that determines if people in video are currently talking or not, and speeds up the video accordingly. Great for long lecture videos for skipping time spent writing on a whiteboard.
 
+<img src="extension-show.gif" />
+
 <img src="ff-vidsum-ui.png" align="right" />
 
 This extension analyses video (typically youtube one, but shall work with any HTML video) and, depending on current loundness of the video, speeds it up at different rates. One can for example speed up teacher talking at 1.5x rate, and speed up teacher writing something at whiteboard at 4x rate.
