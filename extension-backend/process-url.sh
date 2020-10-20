@@ -14,7 +14,7 @@ mkdir -p videocache
 urlhash="$1"
 if [[ $force_recompute -eq 0 ]]; then
     # NOTE: Here we need to do the printf and pipe, or else the hash is different - probably because of some newline at end for some reason?
-    urlhash=$(printf "$1" | sha1sum | cut -d' ' -f1)
+    urlhash=$(printf "%s" "$1" | sha1sum | cut -d' ' -f1)
 
     if [ -e "videocache/$urlhash" ]; then
         echo "There already exists this url with hash $urlhash. Delete it to recompute." >&2
@@ -22,10 +22,12 @@ if [[ $force_recompute -eq 0 ]]; then
     fi
 
     # If we didn't yet download the video, do so now
-    if [ ! -e "videocache/$urlhash.audiolevels" ]; then
+    if [ ! -e "videocache/$urlhash.audiolevels" ] && [ ! -e "videocache/$urlhash.lock" ]; then
+        touch "videocache/$urlhash.lock"
         sound_levels="$(youtube-dl --no-playlist -f worstaudio -o - -- "$1" | ffmpeg -i - -af astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=- -f null -)"
 
         echo "$sound_levels" | grep -Eo -- '-?(inf)?[0-9]*(\.[0-9]+)?$' | sed 'N;s/\n/ /' | grep -v inf | awk '$2 > -50 { print $0 }' > "videocache/$urlhash.audiolevels"
+        rm -f "videocache/$urlhash.lock"
     fi
 fi
 
