@@ -1,37 +1,37 @@
-# Video summarizer <img src="extension-firefox/icon.svg" align="right" />
+# Video Summarizer <img src="extension-firefox/icon.svg" align="right" />
 
-A tool and browser extensions that determines if people in video are currently talking or not, and speeds up the video accordingly. Great for long lecture videos for skipping time spent writing on a whiteboard.
+A tool and browser extensions that determines whether people in a video are currently talking or not and speeds up the video accordingly. Great for skipping time spent writing on a whiteboard in long lecture videos.
 
 <a href="https://soptik.tech/download/ff-vidsum-showcase.mp4"><img src="ff-vidsum-showcase.png" /></a>
 (*Click to view video showcase*)
 
 <img src="ff-vidsum-ui.png" align="right" />
 
-This extension analyses video (typically youtube one, but shall work with any HTML video) and, depending on current loundness of the video, speeds it up at different rates. One can for example speed up teacher talking at 1.5x rate, and speed up teacher writing something at whiteboard at 4x rate.
+This extension analyses video (typically a Youtube one, but it should work with any HTML video) and, depending on the current loudness of the video, speeds it up at different rates. One can, for example, speed up sections where the teacher is talking to a rate of 1.5x, and sections where the teacher is writing something on the whiteboard to a rate of 4x.
 
-This saves quite a bit of time, especially during watching long lectures.
+This saves quite a bit of time, especially on long lectures.
 
-[**Get it for Firefox**](https://addons.mozilla.org/en-US/firefox/addon/video-summarizer/) (Important: Videos that are controlled by this extension are stored on my server. So most videos are not indexed and thus not managed by this extension yet! To index a video, navigate to it and click on the addon icon located next to URL bar. After few seconds, the video should be ready to view through the extension.)
+[**Get it for Firefox**](https://addons.mozilla.org/en-US/firefox/addon/video-summarizer/) (Important: Videos that are controlled by this extension are stored on my server. Therefore, most videos are not indexed and thus not managed by this extension yet! To index a video, navigate to it and click on the addon icon located next to the URL bar. After a few seconds, the video should be ready to view through the extension.)
 
-Google Chrome and chromium-based browsers are not currently supported. Mostly because it costs money to buy developer account.
+Google Chrome and Chromium-based browsers are currently not supported. Mostly because it costs money to purchase a developer account.
 
 ## How does it work
 
-There are two parts to this extension: frontend and backend. Backend indexes videos: downloads them via youtube-dl, extracts sound with ffmpeg and analyzes it with shell and awk (yes, the server is written entirely with gnu coreutils). Generally we seek parts of videos that are greatly below or above average sound of the video. This way, we can determine which parts of video are loud and which are silent.
+There are two parts to this extension: frontend and backend. The backend indexes videos: it downloads them via youtube-dl, extracts sound with ffmpeg and analyses it with shell and awk (yes, the server is written entirely with GNU coreutils). Generally, it seeks parts of videos that are noticeably below or above the average loudness of the video. This way, it can determine which parts of the video are loud and which parts are silent.
 
-When frontend navigates to a page, it checks if there is a HTML5 video. If so, it hashes current URL (after removing uninteresting query parameters and such) and sends it to server, which determines if it has current video cached. Frontend may receive response, which tells it which parts of video are loud or silent. In the opposite case, a button in extension popup panel (the thing that appears when one clicks the extension button next to url bar) appears that allows user to submit video to server for indexation. This generally takes about ten seconds for short videos (sub-10 minutes).
+When the frontend navigates to a page, it checks for any HTML5 videos. If it finds one, it hashes the current URL (after removing uninteresting query parameters and such) and sends it to the server, which checks whether it has the current video cached. If it does, the frontend will receive a response with information about which parts of video are loud or silent. Otherwise, a button in the extension's pop-up panel (the window that appears when you click the extension button next to the URL bar) that allows the user to submit video to the server for indexing appears. This generally takes about 10 seconds for short videos (under 10 minutes).
 
 ## Usage
 
-There are multiple sections here in the repo.
+There are multiple sections in this repository.
 
 - [rust-desktop-cli](rust-desktop-cli) (unmantained obsolete cli. It works, but uses ffmpeg and is a bit slow)
-- [extension-backend](extension-backend) (shell & gnu coreutils-powered backend that analyzes video sound, caches it, and serves via http server)
-- [extension-firefox](extension-firefox) (firefox extension that speeds up videos based on backend response) [Get it for Firefox](https://addons.mozilla.org/en-US/firefox/addon/video-summarizer/)
+- [extension-backend](extension-backend) (shell & GNU coreutils-powered backend that analyzes the video's sound, caches it, and serves it via HTTP server)
+- [extension-firefox](extension-firefox) (Firefox extension that speeds up videos based on backend response) [Get it for Firefox](https://addons.mozilla.org/en-US/firefox/addon/video-summarizer/)
 
 ## Results
 
-Everything was tested with ffmpeg 4.2, and video summarizer 1.1.1 (the rust cli). Settings: `-l 1.5 -s 100`.
+Everything was tested with ffmpeg 4.2, and Video Summarizer 1.1.1 (the rust cli). Settings: `-l 1.5 -s 100`.
 
 | Name | Duration (s) | Silent time (%) | Saved time (s) |
 |---|---|---|---|
@@ -42,4 +42,4 @@ Everything was tested with ffmpeg 4.2, and video summarizer 1.1.1 (the rust cli)
 
 ## Other projects
 
-- [desed](https://github.com/soptikha2/desed), a TUI debugger for sed written in rust. Supports breakpoints, displays variables and allows one to step both forward & backwards. Supports live reload while editing the script.
+- [desed](https://github.com/soptikha2/desed), a TUI debugger for sed written in rust. Supports breakpoints, displays variables and allows one to step both forwards & backwards. Supports live reload while editing the script.
